@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   ADMIN_COOKIE,
-  getAdminPassword,
+  createAdminSessionValue,
   verifyAdminPassword,
 } from "@/lib/auth";
 
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ success: true });
-  response.cookies.set(ADMIN_COOKIE, "authenticated", {
+  response.cookies.set(ADMIN_COOKIE, createAdminSessionValue(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -31,5 +31,5 @@ export async function DELETE() {
 }
 
 export async function GET() {
-  return NextResponse.json({ configured: !!getAdminPassword() });
+  return NextResponse.json({ configured: true });
 }

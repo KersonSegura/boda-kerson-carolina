@@ -6,36 +6,35 @@ function isVercel(): boolean {
   return process.env.VERCEL === "1";
 }
 
-function hasBlobToken(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+function hasBlobConfig(): boolean {
+  return Boolean(
+    process.env.BLOB_READ_WRITE_TOKEN ||
+      process.env.BLOB_STORE_ID ||
+      process.env.VERCEL_OIDC_TOKEN,
+  );
 }
 
-/** En Vercel siempre Blob; en local Blob si hay token, si no archivos. */
+/** En Vercel siempre Blob (OIDC + BLOB_STORE_ID); en local archivos o Blob si hay token. */
 function useBlobStorage(): boolean {
-  return isVercel() || hasBlobToken();
+  return isVercel() || hasBlobConfig();
 }
 
 function localFilePath(filename: string): string {
   return path.join(process.cwd(), "data", filename);
 }
 
-function blobPutOptions() {
-  return {
-    access: "public" as const,
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "application/json",
-    ...(hasBlobToken() ? { token: process.env.BLOB_READ_WRITE_TOKEN } : {}),
-  };
-}
+/** El SDK lee BLOB_STORE_ID + VERCEL_OIDC_TOKEN automáticamente en Vercel. */
+const blobOptions = {
+  access: "public" as const,
+  addRandomSuffix: false,
+  allowOverwrite: true,
+  contentType: "application/json",
+};
 
-function blobGetOptions() {
-  return {
-    access: "public" as const,
-    useCache: false,
-    ...(hasBlobToken() ? { token: process.env.BLOB_READ_WRITE_TOKEN } : {}),
-  };
-}
+const blobReadOptions = {
+  access: "public" as const,
+  useCache: false,
+};
 
 async function readLocalJson<T>(filename: string): Promise<T | null> {
   try {
@@ -54,7 +53,7 @@ async function writeLocalJson<T>(filename: string, data: T): Promise<void> {
 
 async function readBlobJson<T>(filename: string): Promise<T | null> {
   try {
-    const result = await get(filename, blobGetOptions());
+    const result = await get(filename, blobReadOptions);
     if (!result || result.statusCode !== 200 || !result.stream) {
       return null;
     }
@@ -66,10 +65,9 @@ async function readBlobJson<T>(filename: string): Promise<T | null> {
 }
 
 async function writeBlobJson<T>(filename: string, data: T): Promise<void> {
-  await put(filename, JSON.stringify(data, null, 2), blobPutOptions());
+  await put(filename, JSON.stringify(data, null, 2), blobOptions);
 }
 
-/** Lee JSON desde Blob (producción) o archivo local (desarrollo). */
 export async function readJson<T>(filename: string): Promise<T | null> {
   if (useBlobStorage()) {
     return readBlobJson<T>(filename);
@@ -77,9 +75,6 @@ export async function readJson<T>(filename: string): Promise<T | null> {
   return readLocalJson<T>(filename);
 }
 
-/**
- * Lee JSON y, si no existe en Blob, inicializa desde el archivo del repositorio.
- */
 export async function readJsonWithSeed<T>(filename: string): Promise<T> {
   if (useBlobStorage()) {
     const existing = await readBlobJson<T>(filename);
@@ -101,7 +96,6 @@ export async function readJsonWithSeed<T>(filename: string): Promise<T> {
   return local;
 }
 
-/** Escribe JSON en Blob o archivo local. */
 export async function writeJson<T>(filename: string, data: T): Promise<void> {
   if (useBlobStorage()) {
     await writeBlobJson(filename, data);
