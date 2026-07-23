@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category } from "@/types/category";
 import type { PublicGift } from "@/types/gift";
@@ -71,6 +72,7 @@ export function GiftListPage({
   const availableCount = filteredGifts.filter(
     (g) => g.estado === "disponible",
   ).length;
+  const totalCount = filteredGifts.length;
 
   const categoryMap = useMemo(
     () => new Map(categories.map((c) => [c.id, c.nombre])),
@@ -99,16 +101,26 @@ export function GiftListPage({
         <p className="mx-auto mt-2 font-serif text-xl italic text-sage-800 sm:text-2xl">
           Kerson & Carolina
         </p>
-        <div className="mx-auto mt-5 h-px w-12 bg-gold-400" />
+
+        <div className="mt-4 flex justify-center text-sage-500">
+          <ChevronDown
+            className="h-7 w-7 animate-bounce"
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+        </div>
+        <p className="sr-only">Desplázate hacia abajo para ver los regalos</p>
+
+        <div className="mx-auto mt-4 h-px w-12 bg-gold-400" />
         <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-sage-800 sm:text-lg">
           Elige un regalo y apunta tu nombre para reservarlo.
         </p>
-        <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-sage-700">
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-gray-600">
           Cualquier consulta, favor de contactar a alguno de los novios,{" "}
           <button
             type="button"
             onClick={() => setContactOpen(true)}
-            className="font-semibold text-sage-900 underline decoration-sage-400 decoration-2 underline-offset-3 transition-colors hover:text-sage-700"
+            className="font-semibold text-sage-800 underline decoration-sage-400 underline-offset-2 transition-colors hover:text-sage-900"
           >
             contacto
           </button>
@@ -124,8 +136,8 @@ export function GiftListPage({
         />
 
         <p className="mb-5 text-center text-base font-medium text-sage-700">
-          {availableCount} regalo{availableCount !== 1 ? "s" : ""} disponible
-          {availableCount !== 1 ? "s" : ""}
+          {totalCount} regalo{totalCount !== 1 ? "s" : ""} — {availableCount}{" "}
+          disponible{availableCount !== 1 ? "s" : ""}
         </p>
 
         {filteredGifts.length === 0 ? (

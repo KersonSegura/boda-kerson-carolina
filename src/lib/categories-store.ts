@@ -1,8 +1,7 @@
-import { promises as fs } from "fs";
-import path from "path";
 import type { Category, CreateCategoryInput } from "@/types/category";
+import { readJsonWithSeed, writeJson } from "@/lib/json-storage";
 
-const DATA_PATH = path.join(process.cwd(), "data", "categories.json");
+const FILENAME = "categories.json";
 
 function slugify(text: string): string {
   return text
@@ -14,17 +13,11 @@ function slugify(text: string): string {
 }
 
 async function readCategoriesFile(): Promise<Category[]> {
-  try {
-    const raw = await fs.readFile(DATA_PATH, "utf-8");
-    return JSON.parse(raw) as Category[];
-  } catch {
-    return [];
-  }
+  return readJsonWithSeed<Category[]>(FILENAME);
 }
 
 async function writeCategoriesFile(categories: Category[]): Promise<void> {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(categories, null, 2), "utf-8");
+  await writeJson(FILENAME, categories);
 }
 
 export async function getAllCategories(): Promise<Category[]> {

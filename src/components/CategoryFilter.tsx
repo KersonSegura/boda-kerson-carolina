@@ -16,15 +16,15 @@ export function CategoryFilter({
   if (categories.length === 0) return null;
 
   return (
-    <div className="mb-6 -mx-1 overflow-x-auto px-1 scrollbar-none">
-      <p className="mb-3 text-sm font-semibold text-sage-700">
+    <div className="mb-6">
+      <p className="mb-3 text-center text-sm font-semibold text-sage-700">
         Filtrar por categoría
       </p>
-      <div className="flex gap-2 pb-1">
+      <div className="flex flex-wrap justify-center gap-2">
         <button
           type="button"
           onClick={() => onSelect(null)}
-          className={`shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors sm:text-base ${
+          className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-colors sm:text-base ${
             selectedId === null
               ? "bg-sage-700 text-white"
               : "bg-beige-100 text-sage-800 hover:bg-beige-200"
@@ -37,7 +37,7 @@ export function CategoryFilter({
             key={cat.id}
             type="button"
             onClick={() => onSelect(cat.id)}
-            className={`shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors sm:text-base ${
+            className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-colors sm:text-base ${
               selectedId === cat.id
                 ? "bg-sage-700 text-white"
                 : "bg-beige-100 text-sage-800 hover:bg-beige-200"

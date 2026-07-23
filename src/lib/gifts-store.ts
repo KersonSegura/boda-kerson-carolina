@@ -1,21 +1,14 @@
-import { promises as fs } from "fs";
-import path from "path";
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
+import { readJsonWithSeed, writeJson } from "@/lib/json-storage";
 
-const DATA_PATH = path.join(process.cwd(), "data", "gifts.json");
+const FILENAME = "gifts.json";
 
 async function readGiftsFile(): Promise<Gift[]> {
-  try {
-    const raw = await fs.readFile(DATA_PATH, "utf-8");
-    return JSON.parse(raw) as Gift[];
-  } catch {
-    return [];
-  }
+  return readJsonWithSeed<Gift[]>(FILENAME);
 }
 
 async function writeGiftsFile(gifts: Gift[]): Promise<void> {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(gifts, null, 2), "utf-8");
+  await writeJson(FILENAME, gifts);
 }
 
 export async function getAllGifts(): Promise<Gift[]> {
@@ -95,26 +88,33 @@ export async function reserveGift(
   id: string,
   nombre: string,
 ): Promise<{ gift: Gift } | { error: string }> {
-  const gifts = await readGiftsFile();
-  const index = gifts.findIndex((gift) => gift.id === id);
-  if (index === -1) return { error: "Regalo no encontrado" };
+  try {
+    const gifts = await readGiftsFile();
+    const index = gifts.findIndex((gift) => gift.id === id);
+    if (index === -1) return { error: "Regalo no encontrado" };
 
-  const current = gifts[index];
-  if (current.estado === "reservado") {
-    return { error: "Este regalo ya fue reservado" };
+    const current = gifts[index];
+    if (current.estado === "reservado") {
+      return { error: "Este regalo ya fue reservado" };
+    }
+
+    const trimmedName = nombre.trim();
+    if (!trimmedName) return { error: "El nombre es requerido" };
+
+    const updated: Gift = {
+      ...current,
+      estado: "reservado",
+      reservadoPor: trimmedName,
+      reservadoEn: new Date().toISOString(),
+    };
+
+    gifts[index] = updated;
+    await writeGiftsFile(gifts);
+    return { gift: updated };
+  } catch {
+    return {
+      error:
+        "No se pudo guardar la reserva. Si estás en el sitio publicado, activa Vercel Blob en tu proyecto.",
+    };
   }
-
-  const trimmedName = nombre.trim();
-  if (!trimmedName) return { error: "El nombre es requerido" };
-
-  const updated: Gift = {
-    ...current,
-    estado: "reservado",
-    reservadoPor: trimmedName,
-    reservadoEn: new Date().toISOString(),
-  };
-
-  gifts[index] = updated;
-  await writeGiftsFile(gifts);
-  return { gift: updated };
 }
