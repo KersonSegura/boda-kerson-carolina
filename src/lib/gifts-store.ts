@@ -1,5 +1,5 @@
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
-import { readJsonWithSeed, writeJson } from "@/lib/json-storage";
+import { readJsonWithSeed, writeJson, isUsingBlobStorage } from "@/lib/json-storage";
 
 const FILENAME = "gifts.json";
 
@@ -111,10 +111,13 @@ export async function reserveGift(
     gifts[index] = updated;
     await writeGiftsFile(gifts);
     return { gift: updated };
-  } catch {
+  } catch (error) {
+    const detail =
+      error instanceof Error ? error.message : "Error desconocido";
     return {
-      error:
-        "No se pudo guardar la reserva. Si estás en el sitio publicado, activa Vercel Blob en tu proyecto.",
+      error: isUsingBlobStorage()
+        ? `No se pudo guardar la reserva (${detail}). Verifica que el Blob esté conectado al proyecto en Vercel → Storage.`
+        : "No se pudo guardar la reserva en el servidor.",
     };
   }
 }
