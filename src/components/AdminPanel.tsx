@@ -1,26 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   LogOut,
   Pencil,
   Plus,
+  Tag,
   Trash2,
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
+import type { Category } from "@/types/category";
 import type { Gift } from "@/types/gift";
+import { fetchJson } from "@/lib/fetch-json";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getGiftEmoji } from "@/lib/gift-emoji";
 
 interface GiftFormData {
   nombre: string;
   especificaciones: string;
+  categoriaId: string;
 }
 
-const emptyForm: GiftFormData = { nombre: "", especificaciones: "" };
+const emptyForm: GiftFormData = {
+  nombre: "",
+  especificaciones: "",
+  categoriaId: "",
+};
 
 export function AdminPanel() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
@@ -29,55 +37,76 @@ export function AdminPanel() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [gifts, setGifts] = useState<Gift[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<GiftFormData>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  const [newCategory, setNewCategory] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
+
+  const categoryMap = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.nombre])),
+    [categories],
+  );
+
   const checkSession = useCallback(async () => {
-    const res = await fetch("/api/admin/session");
-    const data = await res.json();
-    setAuthenticated(data.authenticated);
+    const res = await fetchJson<{ authenticated: boolean }>(
+      "/api/admin/session",
+    );
+    if (res.ok) setAuthenticated(res.data.authenticated);
   }, []);
 
   const fetchGifts = useCallback(async () => {
+    const res = await fetchJson<Gift[]>("/api/admin/gifts", {
+      cache: "no-store",
+    });
+    if (res.ok) setGifts(res.data);
+  }, []);
+
+  const fetchCategories = useCallback(async () => {
+    const res = await fetchJson<Category[]>("/api/admin/categories", {
+      cache: "no-store",
+    });
+    if (res.ok) setCategories(res.data);
+  }, []);
+
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/gifts");
-      if (res.ok) setGifts(await res.json());
+      await Promise.all([fetchGifts(), fetchCategories()]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchGifts, fetchCategories]);
 
   useEffect(() => {
     checkSession();
   }, [checkSession]);
 
   useEffect(() => {
-    if (authenticated) fetchGifts();
-  }, [authenticated, fetchGifts]);
+    if (authenticated) fetchAll();
+  }, [authenticated, fetchAll]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
     setLoginError("");
-    try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (!res.ok) {
-        setLoginError("Contraseña incorrecta");
-        return;
-      }
+    const res = await fetchJson<{ success: boolean }>("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+      setLoginError("Contraseña incorrecta");
+    } else {
       setAuthenticated(true);
       setPassword("");
-    } finally {
-      setLoginLoading(false);
     }
+    setLoginLoading(false);
   };
 
   const handleLogout = async () => {
@@ -97,33 +126,38 @@ export function AdminPanel() {
     setSaving(true);
     setFormError("");
 
-    try {
-      if (editingId) {
-        const res = await fetch(`/api/gifts/${editingId}`, {
+    const payload = {
+      nombre: form.nombre,
+      especificaciones: form.especificaciones,
+      categoriaId: form.categoriaId || null,
+    };
+
+    const result = editingId
+      ? await fetchJson<Gift>(`/api/gifts/${encodeURIComponent(editingId)}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        setGifts((prev) => prev.map((g) => (g.id === editingId ? data : g)));
-      } else {
-        const res = await fetch("/api/gifts", {
+          body: JSON.stringify(payload),
+        })
+      : await fetchJson<Gift>("/api/gifts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        setGifts((prev) => [...prev, data]);
-      }
+
+    if (!result.ok) {
+      setFormError(result.error);
+    } else if (editingId) {
+      setGifts((prev) =>
+        prev.map((g) => (g.id === editingId ? result.data : g)),
+      );
       setForm(emptyForm);
       setEditingId(null);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Error al guardar");
-    } finally {
-      setSaving(false);
+    } else {
+      setGifts((prev) => [...prev, result.data]);
+      setForm(emptyForm);
     }
+
+    setSaving(false);
   };
 
   const handleEdit = (gift: Gift) => {
@@ -131,6 +165,7 @@ export function AdminPanel() {
     setForm({
       nombre: gift.nombre,
       especificaciones: gift.especificaciones,
+      categoriaId: gift.categoriaId ?? "",
     });
     setFormError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -144,7 +179,10 @@ export function AdminPanel() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar este regalo?")) return;
-    const res = await fetch(`/api/gifts/${id}`, { method: "DELETE" });
+    const res = await fetchJson<{ success: boolean }>(
+      `/api/gifts/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    );
     if (res.ok) {
       setGifts((prev) => prev.filter((g) => g.id !== id));
       if (editingId === id) handleCancelEdit();
@@ -161,15 +199,54 @@ export function AdminPanel() {
             reservadoPor: gift.reservadoPor ?? "Admin",
           };
 
-    const res = await fetch(`/api/gifts/${gift.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const res = await fetchJson<Gift>(
+      `/api/gifts/${encodeURIComponent(gift.id)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
 
     if (res.ok) {
-      const updated = await res.json();
-      setGifts((prev) => prev.map((g) => (g.id === gift.id ? updated : g)));
+      setGifts((prev) => prev.map((g) => (g.id === gift.id ? res.data : g)));
+    }
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategory.trim()) {
+      setCategoryError("Escribe un nombre para la categoría");
+      return;
+    }
+
+    setCategorySaving(true);
+    setCategoryError("");
+
+    const res = await fetchJson<Category>("/api/admin/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre: newCategory.trim() }),
+    });
+
+    if (!res.ok) {
+      setCategoryError(res.error);
+    } else {
+      setCategories((prev) => [...prev, res.data]);
+      setNewCategory("");
+    }
+
+    setCategorySaving(false);
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("¿Eliminar esta categoría?")) return;
+    const res = await fetchJson<{ success: boolean }>(
+      `/api/admin/categories?id=${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    );
+    if (res.ok) {
+      setCategories((prev) => prev.filter((c) => c.id !== id));
     }
   };
 
@@ -228,7 +305,9 @@ export function AdminPanel() {
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <div>
             <h1 className="font-serif text-xl text-sage-900">Administración</h1>
-            <p className="text-xs text-gray-400">{gifts.length} regalos</p>
+            <p className="text-xs text-gray-400">
+              {gifts.length} regalos · {categories.length} categorías
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -249,7 +328,58 @@ export function AdminPanel() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-lg px-4 pt-6 sm:px-6">
+      <div className="mx-auto max-w-lg space-y-8 px-4 pt-6 sm:px-6">
+        {/* Categorías */}
+        <section className="rounded-2xl border border-beige-200 bg-beige-50 p-5">
+          <h2 className="flex items-center gap-2 font-serif text-lg text-sage-900">
+            <Tag className="h-4 w-4" />
+            Categorías
+          </h2>
+
+          <form onSubmit={handleAddCategory} className="mt-4 flex gap-2">
+            <input
+              type="text"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="Ej. Cocina, Hogar…"
+              className="min-w-0 flex-1 rounded-xl border border-beige-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sage-300"
+            />
+            <button
+              type="submit"
+              disabled={categorySaving}
+              className="shrink-0 rounded-xl bg-sage-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-sage-800 disabled:opacity-60"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </form>
+
+          {categoryError && (
+            <p className="mt-2 text-sm text-red-600">{categoryError}</p>
+          )}
+
+          {categories.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <li
+                  key={cat.id}
+                  className="flex items-center gap-1 rounded-full bg-white pl-3 pr-1 py-1 text-sm text-sage-800 shadow-sm"
+                >
+                  {cat.nombre}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCategory(cat.id)}
+                    className="rounded-full p-1 text-red-400 hover:bg-red-50"
+                    aria-label={`Eliminar ${cat.nombre}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Formulario regalo */}
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl border border-beige-200 bg-beige-50 p-5"
@@ -285,6 +415,20 @@ export function AdminPanel() {
               rows={2}
               className="w-full resize-none rounded-xl border border-beige-200 bg-white px-4 py-3 text-sm outline-none focus:border-sage-300"
             />
+            <select
+              value={form.categoriaId}
+              onChange={(e) =>
+                setForm({ ...form, categoriaId: e.target.value })
+              }
+              className="w-full rounded-xl border border-beige-200 bg-white px-4 py-3 text-sm outline-none focus:border-sage-300"
+            >
+              <option value="">Sin categoría</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.nombre}
+                </option>
+              ))}
+            </select>
           </div>
 
           {formError && (
@@ -311,7 +455,8 @@ export function AdminPanel() {
           </div>
         </form>
 
-        <div className="mt-8 space-y-3">
+        {/* Lista regalos */}
+        <section className="space-y-3">
           <h2 className="font-serif text-lg text-sage-900">Regalos</h2>
 
           {loading ? (
@@ -341,6 +486,11 @@ export function AdminPanel() {
                       </span>
                       {gift.nombre}
                     </p>
+                    {gift.categoriaId && (
+                      <p className="mt-1 text-xs text-sage-600">
+                        {categoryMap.get(gift.categoriaId) ?? gift.categoriaId}
+                      </p>
+                    )}
                     {gift.especificaciones && (
                       <p className="mt-1 text-sm text-gray-500">
                         {gift.especificaciones}
@@ -395,7 +545,7 @@ export function AdminPanel() {
               </div>
             ))
           )}
-        </div>
+        </section>
       </div>
     </main>
   );

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { toPublicGift } from "@/lib/gift-utils";
 import { deleteGift, getGiftById, updateGift } from "@/lib/gifts-store";
+
+export const dynamic = "force-dynamic";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -17,6 +20,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
   const gift = await updateGift(id, {
     nombre: body.nombre,
     especificaciones: body.especificaciones,
+    categoriaId: body.categoriaId,
     estado: body.estado,
     reservadoPor: body.reservadoPor,
   });
@@ -51,5 +55,5 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Regalo no encontrado" }, { status: 404 });
   }
 
-  return NextResponse.json(gift);
+  return NextResponse.json(toPublicGift(gift));
 }

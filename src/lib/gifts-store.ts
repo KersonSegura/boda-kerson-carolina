@@ -34,6 +34,7 @@ export async function createGift(input: CreateGiftInput): Promise<Gift> {
     nombre: input.nombre.trim(),
     especificaciones: input.especificaciones.trim(),
     estado: "disponible",
+    ...(input.categoriaId && { categoriaId: input.categoriaId }),
   };
   gifts.push(gift);
   await writeGiftsFile(gifts);
@@ -57,6 +58,12 @@ export async function updateGift(
     }),
     ...(input.estado !== undefined && { estado: input.estado }),
   };
+
+  if (input.categoriaId === null) {
+    delete updated.categoriaId;
+  } else if (input.categoriaId !== undefined) {
+    updated.categoriaId = input.categoriaId;
+  }
 
   if (input.reservadoPor === null) {
     delete updated.reservadoPor;

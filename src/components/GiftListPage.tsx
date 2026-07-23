@@ -1,53 +1,81 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
-import type { Gift } from "@/types/gift";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Category } from "@/types/category";
+import type { PublicGift } from "@/types/gift";
+import { fetchJson } from "@/lib/fetch-json";
+import { CategoryFilter } from "./CategoryFilter";
+import { ContactModal } from "./ContactModal";
 import { GiftCard } from "./GiftCard";
 import { ReserveModal } from "./ReserveModal";
 
-export function GiftListPage() {
-  const [gifts, setGifts] = useState<Gift[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedGift, setSelectedGift] = useState<Gift | null>(null);
+interface GiftListPageProps {
+  initialGifts: PublicGift[];
+  initialCategories: Category[];
+}
 
-  const fetchGifts = useCallback(async () => {
-    try {
-      const res = await fetch("/api/gifts");
-      if (res.ok) {
-        setGifts(await res.json());
-      }
-    } finally {
-      setLoading(false);
-    }
+export function GiftListPage({
+  initialGifts,
+  initialCategories,
+}: GiftListPageProps) {
+  const [gifts, setGifts] = useState<PublicGift[]>(initialGifts);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedGift, setSelectedGift] = useState<PublicGift | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    const [giftsRes, categoriesRes] = await Promise.all([
+      fetchJson<PublicGift[]>("/api/gifts", { cache: "no-store" }),
+      fetchJson<Category[]>("/api/categories", { cache: "no-store" }),
+    ]);
+    if (giftsRes.ok) setGifts(giftsRes.data);
+    if (categoriesRes.ok) setCategories(categoriesRes.data);
   }, []);
 
   useEffect(() => {
-    fetchGifts();
-  }, [fetchGifts]);
+    const onFocus = () => fetchData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchData]);
 
-  const handleSelectGift = (gift: Gift) => {
+  const filteredGifts = useMemo(() => {
+    if (!selectedCategory) return gifts;
+    return gifts.filter((g) => g.categoriaId === selectedCategory);
+  }, [gifts, selectedCategory]);
+
+  const handleSelectGift = (gift: PublicGift) => {
     if (gift.estado === "disponible") {
       setSelectedGift(gift);
     }
   };
 
   const handleReserve = async (giftId: string, nombre: string) => {
-    const res = await fetch(`/api/gifts/${giftId}/reserve`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre }),
-    });
+    const result = await fetchJson<PublicGift>(
+      `/api/gifts/${encodeURIComponent(giftId)}/reserve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre }),
+      },
+    );
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error ?? "No se pudo reservar el regalo");
+    if (!result.ok) {
+      throw new Error(result.error);
     }
 
-    setGifts((prev) => prev.map((g) => (g.id === giftId ? data : g)));
+    setGifts((prev) => prev.map((g) => (g.id === giftId ? result.data : g)));
   };
 
-  const availableCount = gifts.filter((g) => g.estado === "disponible").length;
+  const availableCount = filteredGifts.filter(
+    (g) => g.estado === "disponible",
+  ).length;
+
+  const categoryMap = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.nombre])),
+    [categories],
+  );
 
   return (
     <main className="pb-12">
@@ -71,37 +99,50 @@ export function GiftListPage() {
         </p>
         <div className="mx-auto mt-4 h-px w-12 bg-gold-400" />
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-gray-500">
-          Té de cocina — elige un regalo y apunta tu nombre para reservarlo.
+          Elige un regalo y apunta tu nombre para reservarlo.
+        </p>
+        <p className="mx-auto mt-3 max-w-xs font-serif text-[11px] italic leading-relaxed text-gray-400">
+          Cualquier consulta, favor de contactar a alguno de los novios,{" "}
+          <button
+            type="button"
+            onClick={() => setContactOpen(true)}
+            className="not-italic text-sage-600 underline decoration-sage-300 underline-offset-2 transition-colors hover:text-sage-800"
+          >
+            contacto
+          </button>
+          .
         </p>
       </header>
 
       <section className="mx-auto mt-10 max-w-lg px-4 sm:px-6">
-        {!loading && (
-          <p className="mb-5 text-center text-sm text-gray-500">
-            {availableCount} regalo{availableCount !== 1 ? "s" : ""} disponible
-            {availableCount !== 1 ? "s" : ""}
-          </p>
-        )}
+        <CategoryFilter
+          categories={categories}
+          selectedId={selectedCategory}
+          onSelect={setSelectedCategory}
+        />
 
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-40 animate-pulse rounded-2xl bg-beige-100"
-              />
-            ))}
-          </div>
-        ) : gifts.length === 0 ? (
+        <p className="mb-5 text-center text-sm text-gray-500">
+          {availableCount} regalo{availableCount !== 1 ? "s" : ""} disponible
+          {availableCount !== 1 ? "s" : ""}
+        </p>
+
+        {filteredGifts.length === 0 ? (
           <p className="py-12 text-center text-gray-400">
-            Aún no hay regalos en la lista.
+            {gifts.length === 0
+              ? "Aún no hay regalos en la lista."
+              : "No hay regalos en esta categoría."}
           </p>
         ) : (
           <div className="grid gap-4">
-            {gifts.map((gift) => (
+            {filteredGifts.map((gift) => (
               <GiftCard
                 key={gift.id}
                 gift={gift}
+                categoriaNombre={
+                  gift.categoriaId
+                    ? categoryMap.get(gift.categoriaId)
+                    : undefined
+                }
                 onSelect={handleSelectGift}
               />
             ))}
@@ -113,6 +154,11 @@ export function GiftListPage() {
         gift={selectedGift}
         onClose={() => setSelectedGift(null)}
         onReserve={handleReserve}
+      />
+
+      <ContactModal
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
       />
     </main>
   );
