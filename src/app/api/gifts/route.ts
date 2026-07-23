@@ -25,6 +25,7 @@ export async function POST(request: Request) {
 
   const gift = await createGift({
     nombre: body.nombre,
+    emoji: body.emoji ?? "",
     especificaciones: body.especificaciones ?? "",
     categoriaId: body.categoriaId,
   });

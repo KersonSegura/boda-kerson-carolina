@@ -19,6 +19,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
   const gift = await updateGift(id, {
     nombre: body.nombre,
+    emoji: body.emoji,
     especificaciones: body.especificaciones,
     categoriaId: body.categoriaId,
     estado: body.estado,

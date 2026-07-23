@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category } from "@/types/category";
 import type { PublicGift } from "@/types/gift";
@@ -10,6 +10,7 @@ import { CategoryFilter } from "./CategoryFilter";
 import { ContactModal } from "./ContactModal";
 import { GiftCard } from "./GiftCard";
 import { ReserveModal } from "./ReserveModal";
+import { SectionDivider } from "./SectionDivider";
 
 interface GiftListPageProps {
   initialGifts: PublicGift[];
@@ -79,6 +80,23 @@ export function GiftListPage({
     [categories],
   );
 
+  const contactButton = (
+    <button
+      type="button"
+      onClick={() => setContactOpen(true)}
+      className="font-semibold text-sage-800 underline decoration-sage-400 underline-offset-2 transition-colors hover:text-sage-900"
+    >
+      contacto
+    </button>
+  );
+
+  const scrollToFilters = () => {
+    document.getElementById("gift-filters")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
   return (
     <main className="pb-12">
       <header className="px-4 pt-8 text-center sm:px-6 sm:pt-12">
@@ -112,28 +130,50 @@ export function GiftListPage({
         <p className="sr-only">Desplázate hacia abajo para ver los regalos</p>
 
         <div className="mx-auto mt-4 h-px w-12 bg-gold-400" />
+
+        {/* Subtítulo: 1 línea en pantallas amplias; salto tras "nombre" en móvil */}
         <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-sage-800 sm:text-lg">
-          Elige un regalo y apunta tu nombre para reservarlo.
+          <span className="md:hidden">
+            Elige un regalo y apunta tu nombre
+            <br />
+            para reservarlo.
+          </span>
+          <span className="hidden md:inline">
+            Elige un regalo y apunta tu nombre para reservarlo.
+          </span>
         </p>
+
+        {/* Disclaimer: saltos progresivos según ancho (más estrecho = más cortes) */}
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-gray-600">
-          Cualquier consulta, favor de contactar a alguno de los novios,{" "}
-          <button
-            type="button"
-            onClick={() => setContactOpen(true)}
-            className="font-semibold text-sage-800 underline decoration-sage-400 underline-offset-2 transition-colors hover:text-sage-900"
-          >
-            contacto
-          </button>
-          .
+          {/* Pantallas estrechas (< sm) */}
+          <span className="sm:hidden">
+            Cualquier consulta, favor de contactar
+            <br />a alguno de los novios, {contactButton}.
+          </span>
+          {/* Móvil mediano (sm – lg) */}
+          <span className="hidden sm:inline lg:hidden">
+            Cualquier consulta, favor de contactar a alguno de los novios,
+            <br />
+            {contactButton}.
+          </span>
+          {/* Pantallas amplias */}
+          <span className="hidden lg:inline">
+            Cualquier consulta, favor de contactar a alguno de los novios,{" "}
+            {contactButton}.
+          </span>
         </p>
       </header>
 
-      <section className="mx-auto mt-10 max-w-lg px-4 sm:px-6">
-        <CategoryFilter
-          categories={categories}
-          selectedId={selectedCategory}
-          onSelect={setSelectedCategory}
-        />
+      <SectionDivider className="mt-10 mb-2" />
+
+      <section className="mx-auto mt-6 max-w-lg px-4 sm:px-6">
+        <div id="gift-filters" className="scroll-mt-6">
+          <CategoryFilter
+            categories={categories}
+            selectedId={selectedCategory}
+            onSelect={setSelectedCategory}
+          />
+        </div>
 
         <p className="mb-5 text-center text-base font-medium text-sage-700">
           {totalCount} regalo{totalCount !== 1 ? "s" : ""} — {availableCount}{" "}
@@ -160,6 +200,20 @@ export function GiftListPage({
                 onSelect={handleSelectGift}
               />
             ))}
+          </div>
+        )}
+
+        {filteredGifts.length > 0 && (
+          <div className="mt-8 flex justify-center pb-4">
+            <button
+              type="button"
+              onClick={scrollToFilters}
+              className="inline-flex items-center gap-2 rounded-full border-2 border-sage-300 bg-white px-6 py-3 text-base font-semibold text-sage-800 shadow-sm transition-colors hover:border-sage-400 hover:bg-sage-50 active:scale-[0.98]"
+              aria-label="Volver al inicio de la lista"
+            >
+              <ChevronUp className="h-5 w-5" aria-hidden="true" />
+              Volver al inicio de la lista
+            </button>
           </div>
         )}
       </section>

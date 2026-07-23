@@ -1,4 +1,5 @@
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
+import { DEFAULT_GIFT_EMOJI, isValidGiftEmoji } from "@/lib/gift-emoji";
 import { readJsonWithSeed, writeJson, isUsingBlobStorage } from "@/lib/json-storage";
 
 const FILENAME = "gifts.json";
@@ -25,6 +26,7 @@ export async function createGift(input: CreateGiftInput): Promise<Gift> {
   const gift: Gift = {
     id: crypto.randomUUID(),
     nombre: input.nombre.trim(),
+    emoji: isValidGiftEmoji(input.emoji) ? input.emoji : DEFAULT_GIFT_EMOJI,
     especificaciones: input.especificaciones.trim(),
     estado: "disponible",
     ...(input.categoriaId && { categoriaId: input.categoriaId }),
@@ -46,6 +48,9 @@ export async function updateGift(
   const updated: Gift = {
     ...current,
     ...(input.nombre !== undefined && { nombre: input.nombre.trim() }),
+    ...(input.emoji !== undefined && {
+      emoji: isValidGiftEmoji(input.emoji) ? input.emoji : DEFAULT_GIFT_EMOJI,
+    }),
     ...(input.especificaciones !== undefined && {
       especificaciones: input.especificaciones.trim(),
     }),

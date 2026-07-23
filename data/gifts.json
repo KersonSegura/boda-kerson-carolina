@@ -2,6 +2,7 @@
   {
     "id": "1",
     "nombre": "Juego de platos",
+    "emoji": "🍽️",
     "especificaciones": "Blanco, para 8 personas",
     "estado": "disponible",
     "categoriaId": "cocina"
@@ -9,6 +10,7 @@
   {
     "id": "2",
     "nombre": "Juego de ollas",
+    "emoji": "🍳",
     "especificaciones": "Acero inoxidable",
     "estado": "disponible",
     "categoriaId": "cocina"
@@ -16,6 +18,7 @@
   {
     "id": "3",
     "nombre": "Juego de copas",
+    "emoji": "🥂",
     "especificaciones": "Cristal, set de 6",
     "estado": "disponible",
     "categoriaId": "cocina"
@@ -23,6 +26,7 @@
   {
     "id": "4",
     "nombre": "Batidora de mano",
+    "emoji": "🧁",
     "especificaciones": "500W, color blanco",
     "estado": "disponible",
     "categoriaId": "electrodomesticos"
@@ -30,6 +34,7 @@
   {
     "id": "5",
     "nombre": "Juego de sábanas",
+    "emoji": "🛏️",
     "especificaciones": "Algodón egipcio, tamaño queen",
     "estado": "disponible",
     "categoriaId": "hogar"
@@ -37,6 +42,7 @@
   {
     "id": "6",
     "nombre": "Cafetera",
+    "emoji": "☕",
     "especificaciones": "Espresso automática",
     "estado": "disponible",
     "categoriaId": "electrodomesticos"

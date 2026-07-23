@@ -12,22 +12,25 @@ import {
   Tag,
   Trash2,
   ToggleLeft,
-  ToggleRight,
+  Undo2,
 } from "lucide-react";
 import type { Category } from "@/types/category";
 import type { Gift } from "@/types/gift";
 import { fetchJson } from "@/lib/fetch-json";
 import { StatusBadge } from "@/components/StatusBadge";
-import { getGiftEmoji } from "@/lib/gift-emoji";
+import { EmojiPicker } from "@/components/EmojiPicker";
+import { DEFAULT_GIFT_EMOJI, resolveGiftEmoji } from "@/lib/gift-emoji";
 
 interface GiftFormData {
   nombre: string;
+  emoji: string;
   especificaciones: string;
   categoriaId: string;
 }
 
 const emptyForm: GiftFormData = {
   nombre: "",
+  emoji: DEFAULT_GIFT_EMOJI,
   especificaciones: "",
   categoriaId: "",
 };
@@ -139,6 +142,7 @@ export function AdminPanel() {
 
     const payload = {
       nombre: form.nombre,
+      emoji: form.emoji,
       especificaciones: form.especificaciones,
       categoriaId: form.categoriaId || null,
     };
@@ -175,6 +179,7 @@ export function AdminPanel() {
     setEditingId(gift.id);
     setForm({
       nombre: gift.nombre,
+      emoji: resolveGiftEmoji(gift),
       especificaciones: gift.especificaciones,
       categoriaId: gift.categoriaId ?? "",
     });
@@ -200,22 +205,43 @@ export function AdminPanel() {
     }
   };
 
-  const handleToggleStatus = async (gift: Gift) => {
-    const newStatus = gift.estado === "disponible" ? "reservado" : "disponible";
-    const body =
-      newStatus === "disponible"
-        ? { estado: "disponible", reservadoPor: null }
-        : {
-            estado: "reservado",
-            reservadoPor: gift.reservadoPor ?? "Admin",
-          };
+  const handleMarkReserved = async (gift: Gift) => {
+    if (!confirm("¿Marcar este regalo como reservado manualmente?")) return;
 
     const res = await fetchJson<Gift>(
       `/api/gifts/${encodeURIComponent(gift.id)}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          estado: "reservado",
+          reservadoPor: "Admin",
+        }),
+      },
+    );
+
+    if (res.ok) {
+      setGifts((prev) => prev.map((g) => (g.id === gift.id ? res.data : g)));
+    }
+  };
+
+  const handleClearReservation = async (gift: Gift) => {
+    const reservadoPor = gift.reservadoPor?.trim();
+    const message = reservadoPor
+      ? `¿Quitar la reserva de ${reservadoPor}? El regalo volverá a estar disponible para todos.`
+      : "¿Quitar la reserva de este regalo? Volverá a estar disponible para todos.";
+
+    if (!confirm(message)) return;
+
+    const res = await fetchJson<Gift>(
+      `/api/gifts/${encodeURIComponent(gift.id)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          estado: "disponible",
+          reservadoPor: null,
+        }),
       },
     );
 
@@ -425,6 +451,10 @@ export function AdminPanel() {
           </h2>
 
           <div className="mt-4 space-y-3">
+            <EmojiPicker
+              value={form.emoji}
+              onChange={(emoji) => setForm({ ...form, emoji })}
+            />
             <input
               type="text"
               value={form.nombre}
@@ -508,7 +538,7 @@ export function AdminPanel() {
                   <div className="min-w-0 flex-1">
                     <p className="font-serif text-base text-sage-900">
                       <span aria-hidden="true" className="mr-1.5">
-                        {getGiftEmoji(gift.nombre)}
+                        {resolveGiftEmoji(gift)}
                       </span>
                       {gift.nombre}
                     </p>
@@ -531,25 +561,29 @@ export function AdminPanel() {
                         <span className="font-medium">{gift.reservadoPor}</span>
                       </p>
                     )}
+                    {gift.estado === "reservado" && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearReservation(gift)}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sage-300 bg-sage-50 px-3 py-2 text-sm font-medium text-sage-800 hover:bg-sage-100"
+                      >
+                        <Undo2 className="h-4 w-4" />
+                        Quitar reserva
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex shrink-0 flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleStatus(gift)}
-                      className="rounded-lg p-2 text-sage-600 hover:bg-sage-50"
-                      title={
-                        gift.estado === "disponible"
-                          ? "Marcar como reservado"
-                          : "Marcar como disponible"
-                      }
-                    >
-                      {gift.estado === "disponible" ? (
+                    {gift.estado === "disponible" && (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkReserved(gift)}
+                        className="rounded-lg p-2 text-sage-600 hover:bg-sage-50"
+                        title="Marcar como reservado"
+                      >
                         <ToggleLeft className="h-5 w-5" />
-                      ) : (
-                        <ToggleRight className="h-5 w-5" />
-                      )}
-                    </button>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleEdit(gift)}
