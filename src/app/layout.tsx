@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
-import { Navigation } from "@/components/Navigation";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -18,9 +17,9 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Kerson & Carolina — Nuestra Boda",
+  title: "Lista de regalos — Kerson & Carolina",
   description:
-    "Información de la boda de Kerson y Carolina. Lugar, horario, código de vestimenta y lista de regalos.",
+    "Lista de regalos para el té de cocina de Kerson y Carolina. Reserva tu regalo aquí.",
 };
 
 export const viewport: Viewport = {
@@ -37,10 +36,9 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${cormorant.variable} ${dmSans.variable} h-full scroll-smooth antialiased`}
+      className={`${cormorant.variable} ${dmSans.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-white font-sans text-foreground">
-        <Navigation />
         {children}
       </body>
     </html>

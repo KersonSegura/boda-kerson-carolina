@@ -1,7 +1,9 @@
-import type { GiftStatus } from "@/types/gift";
+"use client";
+
+import type { Gift } from "@/types/gift";
 
 interface StatusBadgeProps {
-  status: GiftStatus;
+  status: Gift["estado"];
 }
 
 const statusConfig = {
