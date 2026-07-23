@@ -32,7 +32,7 @@ export function Modal({ open, onClose, children, ariaLabelledBy }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl sm:max-w-md sm:p-7"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

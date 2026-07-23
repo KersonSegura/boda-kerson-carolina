@@ -45,38 +45,34 @@ export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
   };
 
   return (
-    <Modal
-      open={!!gift}
-      onClose={onClose}
-      ariaLabelledBy="reserve-title"
-    >
+    <Modal open={!!gift} onClose={onClose} ariaLabelledBy="reserve-title">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
           <h2
             id="reserve-title"
-            className="font-serif text-xl text-sage-900"
+            className="font-serif text-2xl leading-snug text-sage-900"
           >
             ¿Quieres reservar este regalo?
           </h2>
           {gift && (
-            <p className="mt-1 text-sm text-gray-500">{gift.nombre}</p>
+            <p className="mt-2 text-base text-sage-700">{gift.nombre}</p>
           )}
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1 text-gray-400 hover:bg-beige-100 hover:text-gray-600"
+          className="rounded-full p-2 text-sage-600 hover:bg-beige-100"
           aria-label="Cerrar"
         >
-          <X className="h-5 w-5" />
+          <X className="h-6 w-6" />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label
             htmlFor="nombre"
-            className="mb-1.5 block text-sm font-medium text-sage-800"
+            className="mb-2 block text-base font-semibold text-sage-800"
           >
             Apunta tu nombre
           </label>
@@ -87,26 +83,26 @@ export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Tu nombre completo"
-            className="w-full rounded-xl border border-beige-200 bg-beige-50 px-4 py-3 text-sm text-sage-900 outline-none transition-colors focus:border-sage-300 focus:bg-white"
+            className="w-full rounded-xl border-2 border-beige-200 bg-beige-50 px-4 py-3.5 text-base text-sage-900 outline-none transition-colors focus:border-sage-400 focus:bg-white"
             disabled={loading}
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-base font-medium text-red-700">{error}</p>}
 
         <div className="flex gap-3">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 rounded-xl border border-beige-200 px-4 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-beige-50"
+            className="flex-1 rounded-xl border-2 border-beige-200 px-4 py-3.5 text-base font-semibold text-sage-700 transition-colors hover:bg-beige-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 rounded-xl bg-sage-700 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-sage-800 disabled:opacity-60"
+            className="flex-1 rounded-xl bg-sage-700 px-4 py-3.5 text-base font-semibold text-white transition-colors hover:bg-sage-800 disabled:opacity-60"
           >
             {loading ? "Reservando…" : "Reservar"}
           </button>

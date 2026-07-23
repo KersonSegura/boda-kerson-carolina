@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Eye,
+  EyeOff,
   LogOut,
   Pencil,
   Plus,
@@ -33,6 +35,7 @@ const emptyForm: GiftFormData = {
 export function AdminPanel() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -98,10 +101,18 @@ export function AdminPanel() {
     const res = await fetchJson<{ success: boolean }>("/api/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password: password.trim() }),
     });
     if (!res.ok) {
-      setLoginError("Contraseña incorrecta");
+      const onVercel =
+        typeof window !== "undefined" &&
+        (window.location.hostname.includes("vercel.app") ||
+          window.location.hostname.endsWith(".vercel.app"));
+      setLoginError(
+        onVercel
+          ? "Contraseña incorrecta. En Vercel ve a Settings → Environment Variables, agrega ADMIN_PASSWORD con tu contraseña y redeploya."
+          : "Contraseña incorrecta. Si cambiaste .env.local, reinicia el servidor con npm run dev.",
+      );
     } else {
       setAuthenticated(true);
       setPassword("");
@@ -276,20 +287,35 @@ export function AdminPanel() {
           </p>
 
           <form onSubmit={handleLogin} className="mt-8 space-y-4">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Contraseña"
-              className="w-full rounded-xl border border-beige-200 bg-beige-50 px-4 py-3 text-sm outline-none focus:border-sage-300 focus:bg-white"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Contraseña"
+                autoComplete="current-password"
+                className="w-full rounded-xl border-2 border-beige-200 bg-beige-50 py-3.5 pl-4 pr-12 text-base text-sage-900 outline-none focus:border-sage-400 focus:bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-sage-600 hover:bg-beige-100"
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             {loginError && (
-              <p className="text-sm text-red-600">{loginError}</p>
+              <p className="text-sm leading-relaxed text-red-700">{loginError}</p>
             )}
             <button
               type="submit"
               disabled={loginLoading}
-              className="w-full rounded-xl bg-sage-700 py-3 text-sm font-medium text-white hover:bg-sage-800 disabled:opacity-60"
+              className="w-full rounded-xl bg-sage-700 py-3.5 text-base font-semibold text-white hover:bg-sage-800 disabled:opacity-60"
             >
               {loginLoading ? "Entrando…" : "Entrar"}
             </button>

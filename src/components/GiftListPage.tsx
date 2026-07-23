@@ -80,33 +80,35 @@ export function GiftListPage({
   return (
     <main className="pb-12">
       <header className="px-4 pt-8 text-center sm:px-6 sm:pt-12">
-        <div className="relative mx-auto aspect-[3/4] max-w-xs overflow-hidden rounded-2xl">
+        <div className="relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-2xl">
           <Image
             src="/hero.png"
             alt="Kerson y Carolina"
             fill
             className="object-cover object-top"
             priority
-            sizes="(max-width: 640px) 90vw, 320px"
+            quality={100}
+            unoptimized
+            sizes="(max-width: 640px) 100vw, 400px"
           />
         </div>
 
         <h1 className="mt-8 font-serif text-3xl leading-tight text-sage-900 sm:text-4xl">
           Lista de regalos
         </h1>
-        <p className="mt-2 font-serif text-lg italic text-sage-700">
+        <p className="mx-auto mt-2 font-serif text-xl italic text-sage-800 sm:text-2xl">
           Kerson & Carolina
         </p>
-        <div className="mx-auto mt-4 h-px w-12 bg-gold-400" />
-        <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-gray-500">
+        <div className="mx-auto mt-5 h-px w-12 bg-gold-400" />
+        <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-sage-800 sm:text-lg">
           Elige un regalo y apunta tu nombre para reservarlo.
         </p>
-        <p className="mx-auto mt-3 max-w-xs font-serif text-[11px] italic leading-relaxed text-gray-400">
+        <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-sage-700">
           Cualquier consulta, favor de contactar a alguno de los novios,{" "}
           <button
             type="button"
             onClick={() => setContactOpen(true)}
-            className="not-italic text-sage-600 underline decoration-sage-300 underline-offset-2 transition-colors hover:text-sage-800"
+            className="font-semibold text-sage-900 underline decoration-sage-400 decoration-2 underline-offset-3 transition-colors hover:text-sage-700"
           >
             contacto
           </button>
@@ -121,13 +123,13 @@ export function GiftListPage({
           onSelect={setSelectedCategory}
         />
 
-        <p className="mb-5 text-center text-sm text-gray-500">
+        <p className="mb-5 text-center text-base font-medium text-sage-700">
           {availableCount} regalo{availableCount !== 1 ? "s" : ""} disponible
           {availableCount !== 1 ? "s" : ""}
         </p>
 
         {filteredGifts.length === 0 ? (
-          <p className="py-12 text-center text-gray-400">
+          <p className="py-12 text-center text-base text-sage-600">
             {gifts.length === 0
               ? "Aún no hay regalos en la lista."
               : "No hay regalos en esta categoría."}
