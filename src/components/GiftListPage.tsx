@@ -7,6 +7,10 @@ import type { Category } from "@/types/category";
 import type { PublicGift } from "@/types/gift";
 import { fetchJson } from "@/lib/fetch-json";
 import { matchesGiftSearch } from "@/lib/gift-search";
+import {
+  applyOptimisticReservation,
+  mergePublicGifts,
+} from "@/lib/gift-utils";
 import { CategoryFilter } from "./CategoryFilter";
 import { ContactModal } from "./ContactModal";
 import { GiftCard } from "./GiftCard";
@@ -29,6 +33,7 @@ export function GiftListPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGift, setSelectedGift] = useState<PublicGift | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
+  const [reserveError, setReserveError] = useState("");
 
   const fetchData = useCallback(async () => {
     const cacheBust = Date.now();
@@ -42,7 +47,9 @@ export function GiftListPage({
         headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
       }),
     ]);
-    if (giftsRes.ok) setGifts(giftsRes.data);
+    if (giftsRes.ok) {
+      setGifts((prev) => mergePublicGifts(prev, giftsRes.data));
+    }
     if (categoriesRes.ok) setCategories(categoriesRes.data);
   }, []);
 
@@ -70,6 +77,15 @@ export function GiftListPage({
   };
 
   const handleReserve = async (giftId: string, nombre: string) => {
+    setReserveError("");
+
+    const snapshot = gifts;
+    setGifts((prev) =>
+      prev.map((gift) =>
+        gift.id === giftId ? applyOptimisticReservation(gift) : gift,
+      ),
+    );
+
     const result = await fetchJson<PublicGift>(
       `/api/gifts/${encodeURIComponent(giftId)}/reserve`,
       {
@@ -80,6 +96,8 @@ export function GiftListPage({
     );
 
     if (!result.ok) {
+      setGifts(snapshot);
+      setReserveError(result.error);
       throw new Error(result.error);
     }
 
@@ -203,6 +221,19 @@ export function GiftListPage({
           {totalCount} regalo{totalCount !== 1 ? "s" : ""} — {availableCount}{" "}
           disponible{availableCount !== 1 ? "s" : ""}
         </p>
+
+        {reserveError && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {reserveError}
+            <button
+              type="button"
+              onClick={() => setReserveError("")}
+              className="mt-1 block font-semibold underline"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
 
         {filteredGifts.length === 0 ? (
           <p className="py-12 text-center text-base text-sage-600">

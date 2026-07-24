@@ -13,7 +13,6 @@ interface ReserveModalProps {
 
 export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
   const [nombre, setNombre] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -25,23 +24,17 @@ export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
     }
   }, [gift]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) {
       setError("Por favor escribe tu nombre");
       return;
     }
 
-    setLoading(true);
-    setError("");
-    try {
-      await onReserve(gift!.id, nombre.trim());
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al reservar");
-    } finally {
-      setLoading(false);
-    }
+    const giftId = gift!.id;
+    const trimmedName = nombre.trim();
+    onClose();
+    void onReserve(giftId, trimmedName);
   };
 
   return (
@@ -84,7 +77,6 @@ export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Tu nombre completo"
             className="w-full rounded-xl border-2 border-beige-200 bg-beige-50 px-4 py-3.5 text-base text-sage-900 outline-none transition-colors focus:border-sage-400 focus:bg-white"
-            disabled={loading}
           />
         </div>
 
@@ -94,17 +86,15 @@ export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
           <button
             type="button"
             onClick={onClose}
-            disabled={loading}
             className="flex-1 rounded-xl border-2 border-beige-200 px-4 py-3.5 text-base font-semibold text-sage-700 transition-colors hover:bg-beige-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            disabled={loading}
-            className="flex-1 rounded-xl bg-sage-700 px-4 py-3.5 text-base font-semibold text-white transition-colors hover:bg-sage-800 disabled:opacity-60"
+            className="flex-1 rounded-xl bg-sage-700 px-4 py-3.5 text-base font-semibold text-white transition-colors hover:bg-sage-800"
           >
-            {loading ? "Reservando…" : "Reservar"}
+            Reservar
           </button>
         </div>
       </form>
