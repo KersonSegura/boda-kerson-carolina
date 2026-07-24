@@ -117,7 +117,7 @@ export function AdminPanel() {
       ]);
       if (!giftsOk && !categoriesOk) {
         setLoadError(
-          "No se pudo conectar con el almacenamiento. Si el error es 403, revisa Vercel → Storage.",
+          "No se pudo conectar con la base de datos. Revisa POSTGRES_URL en Vercel.",
         );
       }
     } finally {

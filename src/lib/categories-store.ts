@@ -1,55 +1,35 @@
 import type { Category, CreateCategoryInput } from "@/types/category";
-import { readJsonWithSeed, writeJson } from "@/lib/json-storage";
-
-const FILENAME = "categories.json";
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-async function readCategoriesFile(): Promise<Category[]> {
-  return readJsonWithSeed<Category[]>(FILENAME);
-}
-
-async function writeCategoriesFile(categories: Category[]): Promise<void> {
-  await writeJson(FILENAME, categories);
-}
+import { hasPostgres } from "@/lib/db";
+import {
+  pgCreateCategory,
+  pgDeleteCategory,
+  pgGetAllCategories,
+} from "@/lib/categories-store-pg";
+import {
+  createCategoryLocal,
+  deleteCategoryLocal,
+  getAllCategoriesLocal,
+} from "@/lib/categories-store-local";
 
 export async function getAllCategories(): Promise<Category[]> {
-  return readCategoriesFile();
+  if (hasPostgres()) {
+    return pgGetAllCategories();
+  }
+  return getAllCategoriesLocal();
 }
 
 export async function createCategory(
   input: CreateCategoryInput,
 ): Promise<Category | { error: string }> {
-  const nombre = input.nombre.trim();
-  if (!nombre) return { error: "El nombre es requerido" };
-
-  const categories = await readCategoriesFile();
-  const baseId = slugify(nombre) || "categoria";
-  let id = baseId;
-  let counter = 1;
-
-  while (categories.some((c) => c.id === id)) {
-    id = `${baseId}-${counter}`;
-    counter++;
+  if (hasPostgres()) {
+    return pgCreateCategory(input);
   }
-
-  const category: Category = { id, nombre };
-  categories.push(category);
-  await writeCategoriesFile(categories);
-  return category;
+  return createCategoryLocal(input);
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  const categories = await readCategoriesFile();
-  const filtered = categories.filter((c) => c.id !== id);
-  if (filtered.length === categories.length) return false;
-  await writeCategoriesFile(filtered);
-  return true;
+  if (hasPostgres()) {
+    return pgDeleteCategory(id);
+  }
+  return deleteCategoryLocal(id);
 }
