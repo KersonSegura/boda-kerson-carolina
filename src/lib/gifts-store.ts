@@ -57,6 +57,19 @@ async function loadAllGifts(): Promise<Gift[]> {
     return [];
   }
 
+  if (ids.length === 0) {
+    try {
+      const { applySeedCatalog } = await import("@/lib/seed-catalog");
+      const seeded = await applySeedCatalog();
+      console.info(
+        `Catálogo vacío: se sembraron ${seeded.giftCount} regalos y ${seeded.categoryCount} categorías.`,
+      );
+      ids = await readManifestIds();
+    } catch (error) {
+      console.error("No se pudo sembrar el catálogo vacío:", error);
+    }
+  }
+
   const gifts: Gift[] = [];
 
   for (let index = 0; index < ids.length; index += LOAD_BATCH_SIZE) {

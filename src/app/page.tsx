@@ -9,10 +9,21 @@ export default async function Home() {
   let gifts: Awaited<ReturnType<typeof getAllGifts>> = [];
   let categories: Awaited<ReturnType<typeof getAllCategories>> = [];
 
-  try {
-    [gifts, categories] = await Promise.all([getAllGifts(), getAllCategories()]);
-  } catch (error) {
-    console.error("Error cargando la página principal:", error);
+  const [giftsResult, categoriesResult] = await Promise.allSettled([
+    getAllGifts(),
+    getAllCategories(),
+  ]);
+
+  if (giftsResult.status === "fulfilled") {
+    gifts = giftsResult.value;
+  } else {
+    console.error("Error cargando regalos:", giftsResult.reason);
+  }
+
+  if (categoriesResult.status === "fulfilled") {
+    categories = categoriesResult.value;
+  } else {
+    console.error("Error cargando categorías:", categoriesResult.reason);
   }
 
   return (

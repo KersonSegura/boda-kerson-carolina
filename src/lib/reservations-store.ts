@@ -16,8 +16,14 @@ async function getReservationStorageMode(): Promise<"per-gift" | "legacy"> {
   if (reservationStorageMode === "per-gift") return "per-gift";
   if (reservationStorageMode === "legacy") return "legacy";
 
-  const files = await listPathnames("reservations/");
-  reservationStorageMode = files.length > 0 ? "per-gift" : "legacy";
+  try {
+    const files = await listPathnames("reservations/");
+    reservationStorageMode = files.length > 0 ? "per-gift" : "legacy";
+  } catch (error) {
+    console.warn("No se pudo detectar el modo de reservas, usando legacy:", error);
+    reservationStorageMode = "legacy";
+  }
+
   return reservationStorageMode;
 }
 
@@ -158,6 +164,10 @@ export async function clearAllReservations(): Promise<void> {
 
 /** Precalienta el modo de almacenamiento una sola vez por carga masiva. */
 export async function warmReservationStorageMode(): Promise<void> {
-  await ensureReservationsMigrated();
-  await getReservationStorageMode();
+  try {
+    await ensureReservationsMigrated();
+    await getReservationStorageMode();
+  } catch (error) {
+    console.warn("Precalentado de reservas omitido:", error);
+  }
 }
