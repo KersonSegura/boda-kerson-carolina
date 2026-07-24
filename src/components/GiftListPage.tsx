@@ -32,16 +32,18 @@ export function GiftListPage({
 
   const fetchData = useCallback(async () => {
     const [giftsRes, categoriesRes] = await Promise.all([
-      fetchJson<PublicGift[]>("/api/gifts", { cache: "no-store" }),
-      fetchJson<Category[]>("/api/categories", { cache: "no-store" }),
+      fetchJson<PublicGift[]>("/api/gifts", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      }),
+      fetchJson<Category[]>("/api/categories", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      }),
     ]);
     if (giftsRes.ok) setGifts(giftsRes.data);
     if (categoriesRes.ok) setCategories(categoriesRes.data);
   }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   useEffect(() => {
     const onFocus = () => fetchData();
@@ -80,7 +82,7 @@ export function GiftListPage({
       throw new Error(result.error);
     }
 
-    setGifts((prev) => prev.map((g) => (g.id === giftId ? result.data : g)));
+    await fetchData();
   };
 
   const availableCount = filteredGifts.filter(
@@ -191,7 +193,7 @@ export function GiftListPage({
         <GiftSearchBar
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Buscar por nombre (ej. platos, ollas…)"
+          placeholder="Buscar por nombre (ej. platos)"
         />
 
         <p className="mb-5 text-center text-base font-medium text-sage-700">

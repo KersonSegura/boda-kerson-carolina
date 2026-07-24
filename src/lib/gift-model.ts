@@ -15,13 +15,24 @@ export function normalizeCantidad(value: unknown): number {
 }
 
 function migrateReservas(raw: RawGift): GiftReservation[] {
-  if (Array.isArray(raw.reservas) && raw.reservas.length > 0) {
-    return raw.reservas
+  if (Array.isArray(raw.reservas)) {
+    const fromArray = raw.reservas
       .filter((r) => r?.nombre?.trim())
       .map((r) => ({
         nombre: r.nombre.trim(),
         reservadoEn: r.reservadoEn ?? new Date().toISOString(),
       }));
+
+    if (fromArray.length === 0 && raw.reservadoPor?.trim()) {
+      return [
+        {
+          nombre: raw.reservadoPor.trim(),
+          reservadoEn: raw.reservadoEn ?? new Date().toISOString(),
+        },
+      ];
+    }
+
+    return fromArray;
   }
 
   if (raw.reservadoPor?.trim()) {
@@ -34,6 +45,20 @@ function migrateReservas(raw: RawGift): GiftReservation[] {
   }
 
   return [];
+}
+
+/** Guarda solo campos actuales — evita campos legacy que duplican reservas al leer. */
+export function giftForStorage(gift: Gift): Gift {
+  return {
+    id: gift.id,
+    nombre: gift.nombre,
+    especificaciones: gift.especificaciones,
+    cantidad: gift.cantidad,
+    reservas: gift.reservas,
+    estado: syncGiftEstado(gift),
+    ...(gift.emoji && { emoji: gift.emoji }),
+    ...(gift.categoriaId && { categoriaId: gift.categoriaId }),
+  };
 }
 
 export function syncGiftEstado(gift: Pick<Gift, "cantidad" | "reservas">): GiftStatus {

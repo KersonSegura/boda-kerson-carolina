@@ -8,7 +8,11 @@ export const dynamic = "force-dynamic";
 /** Lista pública — sin datos de quién reservó */
 export async function GET() {
   const gifts = await getAllGifts();
-  return NextResponse.json(toPublicGifts(gifts));
+  return NextResponse.json(toPublicGifts(gifts), {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
 }
 
 /** Crear regalo (solo admin) */

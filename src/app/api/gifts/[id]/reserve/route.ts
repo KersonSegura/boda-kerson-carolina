@@ -24,5 +24,9 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  return NextResponse.json(toPublicGift(result.gift));
+  return NextResponse.json(toPublicGift(result.gift), {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
 }

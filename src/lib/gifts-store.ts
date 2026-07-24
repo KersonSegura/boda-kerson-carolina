@@ -1,6 +1,7 @@
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
 import { DEFAULT_GIFT_EMOJI, normalizeGiftEmoji } from "@/lib/gift-emoji";
 import {
+  giftForStorage,
   isGiftAvailable,
   normalizeCantidad,
   normalizeGift,
@@ -19,7 +20,7 @@ async function readGiftsFile(): Promise<Gift[]> {
 }
 
 async function writeGiftsFile(gifts: Gift[]): Promise<void> {
-  await writeJson(FILENAME, gifts);
+  await writeJson(FILENAME, gifts.map(giftForStorage));
 }
 
 export async function getAllGifts(): Promise<Gift[]> {
@@ -137,7 +138,11 @@ export async function reserveGift(
 
     gifts[index] = updated;
     await writeGiftsFile(gifts);
-    return { gift: updated };
+
+    const saved = await getGiftById(id);
+    if (!saved) return { error: "Regalo no encontrado" };
+
+    return { gift: saved };
   } catch (error) {
     const detail =
       error instanceof Error ? error.message : "Error desconocido";

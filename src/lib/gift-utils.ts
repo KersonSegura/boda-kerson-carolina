@@ -1,6 +1,6 @@
 import type { Gift, PublicGift } from "@/types/gift";
 import { resolveGiftEmoji } from "@/lib/gift-emoji";
-import { getReservadosCount, normalizeGift } from "@/lib/gift-model";
+import { normalizeGift } from "@/lib/gift-model";
 
 export function toPublicGift(gift: Gift): PublicGift {
   const normalized = normalizeGift(gift);
@@ -11,7 +11,7 @@ export function toPublicGift(gift: Gift): PublicGift {
     emoji: resolveGiftEmoji(normalized),
     especificaciones: normalized.especificaciones,
     cantidad: normalized.cantidad,
-    reservados: getReservadosCount(normalized),
+    reservados: normalized.reservas.length,
     estado: normalized.estado,
     categoriaId: normalized.categoriaId,
   };
