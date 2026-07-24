@@ -12,7 +12,7 @@ import {
   normalizeGift,
   syncGiftEstado,
 } from "@/lib/gift-model";
-import { ensureSchema, sql } from "@/lib/db";
+import { ensureSchema, getSql } from "@/lib/db";
 
 type RawGiftRow = Parameters<typeof normalizeGift>[0];
 
@@ -65,7 +65,8 @@ function assembleGift(row: GiftRow, reservas: GiftReservation[]): Gift {
 }
 
 async function readAllReservations(): Promise<Map<string, GiftReservation[]>> {
-  const { rows } = await sql<ReservationRow>`
+  const sql = getSql();
+  const rows = await sql<ReservationRow[]>`
     SELECT gift_id, nombre, reservado_en, request_id
     FROM reservations
     ORDER BY reservado_en ASC
@@ -81,7 +82,8 @@ async function readAllReservations(): Promise<Map<string, GiftReservation[]>> {
 }
 
 async function loadGiftFromDb(id: string): Promise<Gift | null> {
-  const { rows } = await sql<GiftRow>`
+  const sql = getSql();
+  const rows = await sql<GiftRow[]>`
     SELECT id, nombre, emoji, especificaciones, cantidad, categoria_id, sort_order
     FROM gifts
     WHERE id = ${id}
@@ -90,7 +92,7 @@ async function loadGiftFromDb(id: string): Promise<Gift | null> {
 
   if (rows.length === 0) return null;
 
-  const { rows: reservationRows } = await sql<ReservationRow>`
+  const reservationRows = await sql<ReservationRow[]>`
     SELECT gift_id, nombre, reservado_en, request_id
     FROM reservations
     WHERE gift_id = ${id}
@@ -105,8 +107,9 @@ async function loadGiftFromDb(id: string): Promise<Gift | null> {
 
 export async function pgGetAllGifts(): Promise<Gift[]> {
   await ensureSchema();
+  const sql = getSql();
 
-  const { rows } = await sql<GiftRow>`
+  const rows = await sql<GiftRow[]>`
     SELECT id, nombre, emoji, especificaciones, cantidad, categoria_id, sort_order
     FROM gifts
     ORDER BY sort_order ASC, id ASC
@@ -126,6 +129,7 @@ export async function pgGetGiftById(id: string): Promise<Gift | undefined> {
 
 export async function pgCreateGift(input: CreateGiftInput): Promise<Gift> {
   await ensureSchema();
+  const sql = getSql();
 
   const id = crypto.randomUUID();
   const gift: Gift = {
@@ -139,10 +143,10 @@ export async function pgCreateGift(input: CreateGiftInput): Promise<Gift> {
     ...(input.categoriaId && { categoriaId: input.categoriaId }),
   };
 
-  const { rows } = await sql<{ max: number | null }>`
+  const maxRows = await sql<{ max: number | null }[]>`
     SELECT COALESCE(MAX(sort_order), -1) AS max FROM gifts
   `;
-  const sortOrder = (rows[0]?.max ?? -1) + 1;
+  const sortOrder = (maxRows[0]?.max ?? -1) + 1;
 
   await sql`
     INSERT INTO gifts (id, nombre, emoji, especificaciones, cantidad, categoria_id, sort_order)
@@ -165,6 +169,7 @@ export async function pgUpdateGift(
   input: UpdateGiftInput,
 ): Promise<Gift | null> {
   await ensureSchema();
+  const sql = getSql();
 
   const current = await loadGiftFromDb(id);
   if (!current) return null;
@@ -222,8 +227,9 @@ export async function pgUpdateGift(
 
 export async function pgDeleteGift(id: string): Promise<boolean> {
   await ensureSchema();
-  const { rowCount } = await sql`DELETE FROM gifts WHERE id = ${id}`;
-  return (rowCount ?? 0) > 0;
+  const sql = getSql();
+  const deleted = await sql`DELETE FROM gifts WHERE id = ${id} RETURNING id`;
+  return deleted.length > 0;
 }
 
 export async function pgReserveGift(
@@ -232,6 +238,7 @@ export async function pgReserveGift(
   requestId?: string,
 ): Promise<{ gift: Gift } | { error: string }> {
   await ensureSchema();
+  const sql = getSql();
 
   const trimmedName = nombre.trim();
   if (!trimmedName) return { error: "El nombre es requerido" };
@@ -240,14 +247,14 @@ export async function pgReserveGift(
   if (!gift) return { error: "Regalo no encontrado" };
 
   if (requestId) {
-    const { rows } = await sql<ReservationRow>`
+    const existing = await sql<ReservationRow[]>`
       SELECT gift_id, nombre, reservado_en, request_id
       FROM reservations
       WHERE gift_id = ${id} AND request_id = ${requestId}
       LIMIT 1
     `;
 
-    if (rows.length > 0) {
+    if (existing.length > 0) {
       return { gift };
     }
   }
@@ -307,6 +314,7 @@ export async function pgResetCatalogFromSeed(
   categories: Category[],
 ): Promise<number> {
   await ensureSchema();
+  const sql = getSql();
 
   await sql`DELETE FROM reservations`;
   await sql`DELETE FROM gifts`;
@@ -354,6 +362,9 @@ export async function pgResetCatalogFromSeed(
 
 export async function pgCountGifts(): Promise<number> {
   await ensureSchema();
-  const { rows } = await sql<{ count: string }>`SELECT COUNT(*)::text AS count FROM gifts`;
+  const sql = getSql();
+  const rows = await sql<{ count: string }[]>`
+    SELECT COUNT(*)::text AS count FROM gifts
+  `;
   return parseInt(rows[0]?.count ?? "0", 10);
 }

@@ -1,5 +1,5 @@
 import type { Category, CreateCategoryInput } from "@/types/category";
-import { ensureSchema, sql } from "@/lib/db";
+import { ensureSchema, getSql } from "@/lib/db";
 
 function slugify(text: string): string {
   return text
@@ -12,20 +12,20 @@ function slugify(text: string): string {
 
 export async function pgGetAllCategories(): Promise<Category[]> {
   await ensureSchema();
+  const sql = getSql();
 
-  const { rows } = await sql<Category>`
+  return sql<Category[]>`
     SELECT id, nombre
     FROM categories
     ORDER BY nombre ASC
   `;
-
-  return rows;
 }
 
 export async function pgCreateCategory(
   input: CreateCategoryInput,
 ): Promise<Category | { error: string }> {
   await ensureSchema();
+  const sql = getSql();
 
   const nombre = input.nombre.trim();
   if (!nombre) return { error: "El nombre es requerido" };
@@ -51,6 +51,7 @@ export async function pgCreateCategory(
 
 export async function pgDeleteCategory(id: string): Promise<boolean> {
   await ensureSchema();
-  const { rowCount } = await sql`DELETE FROM categories WHERE id = ${id}`;
-  return (rowCount ?? 0) > 0;
+  const sql = getSql();
+  const deleted = await sql`DELETE FROM categories WHERE id = ${id} RETURNING id`;
+  return deleted.length > 0;
 }

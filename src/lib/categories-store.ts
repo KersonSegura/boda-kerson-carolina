@@ -1,5 +1,5 @@
 import type { Category, CreateCategoryInput } from "@/types/category";
-import { hasPostgres } from "@/lib/db";
+import { shouldUsePostgres } from "@/lib/db";
 import {
   pgCreateCategory,
   pgDeleteCategory,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/categories-store-local";
 
 export async function getAllCategories(): Promise<Category[]> {
-  if (hasPostgres()) {
+  if (shouldUsePostgres()) {
     return pgGetAllCategories();
   }
   return getAllCategoriesLocal();
@@ -21,14 +21,14 @@ export async function getAllCategories(): Promise<Category[]> {
 export async function createCategory(
   input: CreateCategoryInput,
 ): Promise<Category | { error: string }> {
-  if (hasPostgres()) {
+  if (shouldUsePostgres()) {
     return pgCreateCategory(input);
   }
   return createCategoryLocal(input);
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  if (hasPostgres()) {
+  if (shouldUsePostgres()) {
     return pgDeleteCategory(id);
   }
   return deleteCategoryLocal(id);

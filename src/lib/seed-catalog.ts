@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import type { Category } from "@/types/category";
 import type { Gift } from "@/types/gift";
-import { hasPostgres } from "@/lib/db";
+import { shouldUsePostgres } from "@/lib/db";
 import { resetCatalogFromSeed } from "@/lib/gifts-store";
 
 const VERSION_FILENAME = "catalog-version.json";
@@ -40,7 +40,7 @@ export async function applySeedCatalog(): Promise<{
 
   const giftCount = await resetCatalogFromSeed(gifts);
 
-  if (!hasPostgres()) {
+  if (!shouldUsePostgres()) {
     const { writeJson } = await import("@/lib/json-storage");
     await Promise.all([
       writeJson("categories.json", categories),
