@@ -31,14 +31,15 @@ export function GiftListPage({
   const [contactOpen, setContactOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
+    const cacheBust = Date.now();
     const [giftsRes, categoriesRes] = await Promise.all([
-      fetchJson<PublicGift[]>("/api/gifts", {
+      fetchJson<PublicGift[]>(`/api/gifts?t=${cacheBust}`, {
         cache: "no-store",
-        headers: { "Cache-Control": "no-cache" },
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
       }),
-      fetchJson<Category[]>("/api/categories", {
+      fetchJson<Category[]>(`/api/categories?t=${cacheBust}`, {
         cache: "no-store",
-        headers: { "Cache-Control": "no-cache" },
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
       }),
     ]);
     if (giftsRes.ok) setGifts(giftsRes.data);
@@ -82,7 +83,9 @@ export function GiftListPage({
       throw new Error(result.error);
     }
 
-    await fetchData();
+    setGifts((prev) =>
+      prev.map((gift) => (gift.id === giftId ? result.data : gift)),
+    );
   };
 
   const availableCount = filteredGifts.filter(

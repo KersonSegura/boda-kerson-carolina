@@ -1,5 +1,4 @@
 import type { Category, CreateCategoryInput } from "@/types/category";
-import { ensureCatalogSynced } from "@/lib/seed-catalog";
 import { readJsonWithSeed, writeJson } from "@/lib/json-storage";
 
 const FILENAME = "categories.json";
@@ -14,7 +13,6 @@ function slugify(text: string): string {
 }
 
 async function readCategoriesFile(): Promise<Category[]> {
-  await ensureCatalogSynced();
   return readJsonWithSeed<Category[]>(FILENAME);
 }
 

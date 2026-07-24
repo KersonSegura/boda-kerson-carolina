@@ -51,16 +51,30 @@ async function writeLocalJson<T>(filename: string, data: T): Promise<void> {
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
 }
 
+class BlobReadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BlobReadError";
+  }
+}
+
+/** null = archivo no existe en Blob; error = fallo transitorio (no re-sembrar). */
 async function readBlobJson<T>(filename: string): Promise<T | null> {
   try {
     const result = await get(filename, blobReadOptions);
-    if (!result || result.statusCode !== 200 || !result.stream) {
+    if (!result?.stream) {
       return null;
     }
+
     const text = await new Response(result.stream).text();
     return JSON.parse(text) as T;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof BlobReadError) throw error;
+    throw new BlobReadError(
+      `Lectura de Blob falló (${filename}): ${
+        error instanceof Error ? error.message : "error desconocido"
+      }`,
+    );
   }
 }
 
@@ -80,6 +94,7 @@ export async function readJsonWithSeed<T>(filename: string): Promise<T> {
     const existing = await readBlobJson<T>(filename);
     if (existing !== null) return existing;
 
+    // Solo sembrar cuando el Blob no tiene el archivo (404), nunca por error de red.
     const seed = await readLocalJson<T>(filename);
     if (seed === null) {
       throw new Error(`No se encontró ${filename}`);

@@ -1,4 +1,5 @@
 import type { Gift, GiftReservation, GiftStatus } from "@/types/gift";
+import { normalizeGiftEmoji } from "@/lib/gift-emoji";
 
 type RawGift = Partial<Gift> & {
   id: string;
@@ -49,16 +50,22 @@ function migrateReservas(raw: RawGift): GiftReservation[] {
 
 /** Guarda solo campos actuales — evita campos legacy que duplican reservas al leer. */
 export function giftForStorage(gift: Gift): Gift {
-  return {
+  const stored: Gift = {
     id: gift.id,
     nombre: gift.nombre,
     especificaciones: gift.especificaciones,
     cantidad: gift.cantidad,
     reservas: gift.reservas,
     estado: syncGiftEstado(gift),
-    ...(gift.emoji && { emoji: gift.emoji }),
-    ...(gift.categoriaId && { categoriaId: gift.categoriaId }),
   };
+
+  stored.emoji = normalizeGiftEmoji(gift.emoji ?? "");
+
+  if (gift.categoriaId) {
+    stored.categoriaId = gift.categoriaId;
+  }
+
+  return stored;
 }
 
 export function syncGiftEstado(gift: Pick<Gift, "cantidad" | "reservas">): GiftStatus {

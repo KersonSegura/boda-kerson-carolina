@@ -78,8 +78,9 @@ export function AdminPanel() {
   }, []);
 
   const fetchGifts = useCallback(async () => {
-    const res = await fetchJson<Gift[]>("/api/admin/gifts", {
+    const res = await fetchJson<Gift[]>(`/api/admin/gifts?t=${Date.now()}`, {
       cache: "no-store",
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
     });
     if (res.ok) setGifts(res.data);
   }, []);

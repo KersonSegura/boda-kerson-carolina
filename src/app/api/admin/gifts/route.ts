@@ -11,5 +11,9 @@ export async function GET() {
   }
 
   const gifts = await getAllGifts();
-  return NextResponse.json(gifts);
+  return NextResponse.json(gifts, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
 }
