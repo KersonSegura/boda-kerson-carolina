@@ -1,5 +1,5 @@
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
-import { DEFAULT_GIFT_EMOJI, isValidGiftEmoji } from "@/lib/gift-emoji";
+import { DEFAULT_GIFT_EMOJI, normalizeGiftEmoji } from "@/lib/gift-emoji";
 import { ensureCatalogSynced } from "@/lib/seed-catalog";
 import { readJsonWithSeed, writeJson, isUsingBlobStorage } from "@/lib/json-storage";
 
@@ -28,7 +28,7 @@ export async function createGift(input: CreateGiftInput): Promise<Gift> {
   const gift: Gift = {
     id: crypto.randomUUID(),
     nombre: input.nombre.trim(),
-    emoji: isValidGiftEmoji(input.emoji) ? input.emoji : DEFAULT_GIFT_EMOJI,
+    emoji: normalizeGiftEmoji(input.emoji),
     especificaciones: input.especificaciones.trim(),
     estado: "disponible",
     ...(input.categoriaId && { categoriaId: input.categoriaId }),
@@ -51,7 +51,7 @@ export async function updateGift(
     ...current,
     ...(input.nombre !== undefined && { nombre: input.nombre.trim() }),
     ...(input.emoji !== undefined && {
-      emoji: isValidGiftEmoji(input.emoji) ? input.emoji : DEFAULT_GIFT_EMOJI,
+      emoji: normalizeGiftEmoji(input.emoji),
     }),
     ...(input.especificaciones !== undefined && {
       especificaciones: input.especificaciones.trim(),

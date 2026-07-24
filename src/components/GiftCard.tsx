@@ -1,7 +1,7 @@
 "use client";
 
 import type { PublicGift } from "@/types/gift";
-import { resolveGiftEmoji } from "@/lib/gift-emoji";
+import { DEFAULT_GIFT_EMOJI } from "@/lib/gift-emoji";
 import { StatusBadge } from "./StatusBadge";
 
 interface GiftCardProps {
@@ -11,7 +11,7 @@ interface GiftCardProps {
 }
 
 export function GiftCard({ gift, categoriaNombre, onSelect }: GiftCardProps) {
-  const emoji = resolveGiftEmoji(gift);
+  const emoji = gift.emoji?.trim() || DEFAULT_GIFT_EMOJI;
   const isAvailable = gift.estado === "disponible";
 
   return (

@@ -23,7 +23,17 @@ async function readSeedVersion(): Promise<number> {
 
 async function readStoredVersion(): Promise<number> {
   const stored = await readJson<CatalogVersion>(VERSION_FILENAME);
-  return stored?.version ?? 0;
+  if (stored?.version) return stored.version;
+
+  // Ya hay regalos en Blob pero sin versión: no resetear (preserva emojis y ediciones).
+  const existingGifts = await readJson<Gift[]>("gifts.json");
+  if (existingGifts && existingGifts.length > 0) {
+    const seedVersion = await readSeedVersion();
+    await writeJson(VERSION_FILENAME, { version: seedVersion });
+    return seedVersion;
+  }
+
+  return 0;
 }
 
 /** Aplica la plantilla del repo si el deploy trae una versión más nueva que Blob. */

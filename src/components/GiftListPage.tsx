@@ -37,6 +37,10 @@ export function GiftListPage({
   }, []);
 
   useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
     const onFocus = () => fetchData();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
