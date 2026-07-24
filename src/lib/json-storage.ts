@@ -28,11 +28,16 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Credenciales Blob en orden de preferencia:
- * 1. BLOB_READ_WRITE_TOKEN (estático, más fiable si OIDC falla)
- * 2. VERCEL_OIDC_TOKEN + BLOB_STORE_ID (automático en Vercel)
+ * Credenciales Blob.
+ * En Vercel NO pasamos BLOB_READ_WRITE_TOKEN explícito: el SDK usa OIDC por defecto
+ * y un token estático mal copiado provoca 403 aunque OIDC funcione.
+ * Fuera de Vercel usamos el token estático o OIDC manual.
  */
 function blobAuthOptions(): Record<string, string> {
+  if (isVercel()) {
+    return {};
+  }
+
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (token) return { token };
 
@@ -42,6 +47,33 @@ function blobAuthOptions(): Record<string, string> {
   if (storeId) return { storeId };
 
   return {};
+}
+
+function resolveBlobStoreId(): string | null {
+  const fromEnv = process.env.BLOB_STORE_ID?.trim();
+  if (fromEnv) {
+    return fromEnv.replace(/^store_/, "");
+  }
+
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (token) {
+    const parts = token.split("_");
+    if (parts[3]) return parts[3];
+  }
+
+  return null;
+}
+
+function publicBlobUrl(pathname: string): string | null {
+  const storeId = resolveBlobStoreId();
+  if (!storeId) return null;
+
+  const encodedPath = pathname
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+  return `https://${storeId}.public.blob.vercel-storage.com/${encodedPath}`;
 }
 
 const blobOptions = {
@@ -88,16 +120,35 @@ function isForbiddenBlobError(error: unknown): boolean {
   return /403|forbidden/i.test(message);
 }
 
-/** Lectura por URL pública — no requiere token (blobs con access: public). */
+/** Lectura directa por URL pública — sin token (stores public). */
+async function readBlobJsonViaDirectPublicUrl<T>(
+  filename: string,
+): Promise<T | null> {
+  const url = publicBlobUrl(filename);
+  if (!url) return null;
+
+  const response = await fetch(`${url}?v=${Date.now()}`, {
+    cache: "no-store",
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new BlobReadError(
+      `Lectura pública directa falló (${filename}): HTTP ${response.status}`,
+    );
+  }
+
+  return (await response.json()) as T;
+}
+
+/** Lectura por URL pública vía list — requiere credenciales para listar. */
 async function readBlobJsonViaPublicUrl<T>(filename: string): Promise<T | null> {
   const auth = blobAuthOptions();
-  if (Object.keys(auth).length === 0) return null;
+  const listOptions =
+    Object.keys(auth).length > 0
+      ? { prefix: filename, limit: 20, ...auth }
+      : { prefix: filename, limit: 20 };
 
-  const { blobs } = await list({
-    prefix: filename,
-    limit: 20,
-    ...auth,
-  });
+  const { blobs } = await list(listOptions);
 
   const match = blobs.find((blob) => blob.pathname === filename);
   if (!match?.url) return null;
@@ -113,6 +164,16 @@ async function readBlobJsonViaPublicUrl<T>(filename: string): Promise<T | null> 
   }
 
   return (await response.json()) as T;
+}
+
+async function readBlobJsonWithPublicFallback<T>(
+  filename: string,
+): Promise<T | null> {
+  try {
+    return await readBlobJsonViaDirectPublicUrl<T>(filename);
+  } catch {
+    return readBlobJsonViaPublicUrl<T>(filename);
+  }
 }
 
 /** null = archivo no existe en Blob; error = fallo transitorio (no re-sembrar). */
@@ -134,17 +195,9 @@ async function readBlobJson<T>(
     const text = await new Response(result.stream).text();
     return JSON.parse(text) as T;
   } catch (error) {
-    if (isForbiddenBlobError(error) && process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
-      throw new BlobReadError(
-        `Lectura de Blob falló (${filename}): ${
-          error instanceof Error ? error.message : "403 Forbidden"
-        }`,
-      );
-    }
-
     if (isForbiddenBlobError(error)) {
       try {
-        return await readBlobJsonViaPublicUrl<T>(filename);
+        return await readBlobJsonWithPublicFallback<T>(filename);
       } catch (publicError) {
         throw new BlobReadError(
           `Lectura de Blob falló (${filename}): ${
@@ -176,7 +229,7 @@ async function writeBlobJson<T>(
   const maxAttempts = 3;
   const auth = blobAuthOptions();
 
-  if (Object.keys(auth).length === 0) {
+  if (Object.keys(auth).length === 0 && !isVercel() && !hasBlobConfig()) {
     throw new BlobReadError(
       "Escritura de Blob sin credenciales. Agrega BLOB_READ_WRITE_TOKEN desde Vercel → Storage → .env.local, o conecta el store al proyecto para OIDC.",
     );
@@ -259,12 +312,21 @@ export async function deleteJson(filename: string): Promise<void> {
 
 export async function listPathnames(prefix: string): Promise<string[]> {
   if (useBlobStorage()) {
-    const { blobs } = await list({
-      prefix,
-      limit: 1000,
-      ...blobAuthOptions(),
-    });
-    return blobs.map((blob) => blob.pathname);
+    try {
+      const { blobs } = await list({
+        prefix,
+        limit: 1000,
+        ...blobAuthOptions(),
+      });
+      return blobs.map((blob) => blob.pathname);
+    } catch (error) {
+      if (!isForbiddenBlobError(error)) throw error;
+      // Sin list auth: inferir paths conocidos del manifiesto si existe.
+      if (prefix === "gifts/" || prefix === "reservations/") {
+        return [];
+      }
+      throw error;
+    }
   }
 
   const dir = localFilePath(prefix);
@@ -284,6 +346,8 @@ export function isUsingBlobStorage(): boolean {
 }
 
 export function hasBlobWriteCredentials(): boolean {
+  if (isVercel() && process.env.BLOB_STORE_ID?.trim()) return true;
+
   return Boolean(
     process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
       (process.env.BLOB_STORE_ID?.trim() &&
