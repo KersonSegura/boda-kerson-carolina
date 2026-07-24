@@ -4,6 +4,7 @@ import { deleteJson, listPathnames, readJson, writeJson } from "@/lib/json-stora
 const LEGACY_MAP_PATH = "reservations.json";
 
 let migrationPromise: Promise<void> | null = null;
+let usingPerGiftFiles = false;
 
 export function giftReservationsPath(id: string): string {
   return `reservations/${id}.json`;
@@ -39,8 +40,12 @@ function normalizeLegacyMap(raw: unknown): Record<string, GiftReservation[]> {
 }
 
 async function readLegacyMap(): Promise<Record<string, GiftReservation[]>> {
-  const legacy = await readJson<unknown>(LEGACY_MAP_PATH);
-  return normalizeLegacyMap(legacy);
+  try {
+    const legacy = await readJson<unknown>(LEGACY_MAP_PATH);
+    return normalizeLegacyMap(legacy);
+  } catch {
+    return {};
+  }
 }
 
 function parseReservationFile(
@@ -60,26 +65,37 @@ export async function ensureReservationsMigrated(): Promise<void> {
 
 async function migrateLegacyReservationsIfNeeded(): Promise<void> {
   const perGiftFiles = await listPathnames("reservations/");
-  if (perGiftFiles.length > 0) return;
+  if (perGiftFiles.length > 0) {
+    usingPerGiftFiles = true;
+    return;
+  }
 
   const map = await readLegacyMap();
-  if (Object.keys(map).length === 0) return;
+  if (Object.keys(map).length === 0) {
+    usingPerGiftFiles = true;
+    return;
+  }
 
   await Promise.all(
     Object.entries(map).map(([giftId, reservas]) =>
       writeGiftReservations(giftId, reservas),
     ),
   );
+  usingPerGiftFiles = true;
 }
 
 async function readGiftReservationsFromFile(
   id: string,
 ): Promise<GiftReservation[] | null> {
-  const raw = await readJson<{ reservas?: GiftReservation[] } | GiftReservation[]>(
-    giftReservationsPath(id),
-  );
-  if (raw === null) return null;
-  return parseReservationFile(raw);
+  try {
+    const raw = await readJson<
+      { reservas?: GiftReservation[] } | GiftReservation[]
+    >(giftReservationsPath(id));
+    if (raw === null) return null;
+    return parseReservationFile(raw);
+  } catch {
+    return null;
+  }
 }
 
 export async function readGiftReservations(id: string): Promise<GiftReservation[]> {
@@ -87,6 +103,9 @@ export async function readGiftReservations(id: string): Promise<GiftReservation[
 
   const fromFile = await readGiftReservationsFromFile(id);
   if (fromFile !== null) return fromFile;
+
+  // Tras migración, archivo ausente = sin reservas (no volver al mapa legacy).
+  if (usingPerGiftFiles) return [];
 
   const legacy = await readLegacyMap();
   return legacy[id] ?? [];
@@ -103,23 +122,18 @@ export async function readGiftReservationsWithRetry(
     await sleep(120 * (attempt + 1));
   }
 
-  const last = await readGiftReservationsFromFile(id);
-  return last ?? [];
+  return (await readGiftReservationsFromFile(id)) ?? [];
 }
 
 export async function writeGiftReservations(
   id: string,
   reservas: GiftReservation[],
 ): Promise<void> {
-  if (reservas.length === 0) {
-    await deleteJson(giftReservationsPath(id));
-    return;
-  }
   await writeJson(giftReservationsPath(id), { reservas });
 }
 
 export async function clearGiftReservations(giftId: string): Promise<void> {
-  await deleteJson(giftReservationsPath(giftId));
+  await writeGiftReservations(giftId, []);
 }
 
 /** Migra reservas embebidas en filas del catálogo legacy. */
@@ -143,4 +157,5 @@ export async function clearAllReservations(): Promise<void> {
   const files = await listPathnames("reservations/");
   await Promise.all(files.map((pathname) => deleteJson(pathname)));
   migrationPromise = null;
+  usingPerGiftFiles = true;
 }

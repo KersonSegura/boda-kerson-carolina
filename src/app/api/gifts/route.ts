@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { storageErrorResponse } from "@/lib/api-error";
 import { toPublicGifts } from "@/lib/gift-utils";
 import { createGift, getAllGifts } from "@/lib/gifts-store";
 
@@ -7,12 +8,20 @@ export const dynamic = "force-dynamic";
 
 /** Lista pública — sin datos de quién reservó */
 export async function GET() {
-  const gifts = await getAllGifts();
-  return NextResponse.json(toPublicGifts(gifts), {
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    },
-  });
+  try {
+    const gifts = await getAllGifts();
+    return NextResponse.json(toPublicGifts(gifts), {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
+  } catch (error) {
+    const { message, status } = storageErrorResponse(
+      error,
+      "No se pudieron cargar los regalos",
+    );
+    return NextResponse.json({ error: message }, { status });
+  }
 }
 
 /** Crear regalo (solo admin) */

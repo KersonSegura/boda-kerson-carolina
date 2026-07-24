@@ -26,24 +26,50 @@ import {
 type RawGiftRow = Parameters<typeof normalizeGift>[0];
 
 async function loadGift(id: string): Promise<Gift | null> {
-  const row = await readCatalogRow(id);
-  if (!row) return null;
+  try {
+    const row = await readCatalogRow(id);
+    if (!row) return null;
 
-  const gift = normalizeGift(row);
-  const reservas = await readGiftReservations(id);
-  return {
-    ...gift,
-    reservas,
-    estado: syncGiftEstado({ cantidad: gift.cantidad, reservas }),
-  };
+    const gift = normalizeGift(row);
+    const reservas = await readGiftReservations(id);
+    return {
+      ...gift,
+      reservas,
+      estado: syncGiftEstado({ cantidad: gift.cantidad, reservas }),
+    };
+  } catch (error) {
+    console.error(`No se pudo cargar el regalo ${id}:`, error);
+    return null;
+  }
 }
+
+const LOAD_BATCH_SIZE = 12;
 
 async function loadAllGifts(): Promise<Gift[]> {
   await ensureCatalogMigrated();
 
-  const ids = await readManifestIds();
-  const gifts = await Promise.all(ids.map((id) => loadGift(id)));
-  return gifts.filter((gift): gift is Gift => gift !== null);
+  let ids: string[] = [];
+  try {
+    ids = await readManifestIds();
+  } catch (error) {
+    console.error("No se pudo leer el manifiesto de regalos:", error);
+    return [];
+  }
+
+  const gifts: Gift[] = [];
+
+  for (let index = 0; index < ids.length; index += LOAD_BATCH_SIZE) {
+    const batch = ids.slice(index, index + LOAD_BATCH_SIZE);
+    const results = await Promise.allSettled(batch.map((id) => loadGift(id)));
+
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value) {
+        gifts.push(result.value);
+      }
+    }
+  }
+
+  return gifts;
 }
 
 export async function getAllGifts(): Promise<Gift[]> {

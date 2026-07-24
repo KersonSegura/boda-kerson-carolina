@@ -6,10 +6,14 @@ import { GiftListPage } from "@/components/GiftListPage";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [gifts, categories] = await Promise.all([
-    getAllGifts(),
-    getAllCategories(),
-  ]);
+  let gifts: Awaited<ReturnType<typeof getAllGifts>> = [];
+  let categories: Awaited<ReturnType<typeof getAllCategories>> = [];
+
+  try {
+    [gifts, categories] = await Promise.all([getAllGifts(), getAllCategories()]);
+  } catch (error) {
+    console.error("Error cargando la página principal:", error);
+  }
 
   return (
     <GiftListPage

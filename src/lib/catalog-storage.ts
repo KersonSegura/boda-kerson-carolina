@@ -70,28 +70,42 @@ async function migrateLegacyCatalogIfNeeded(): Promise<void> {
 
 export async function readManifestIds(): Promise<string[]> {
   await ensureCatalogMigrated();
-  const manifest = await readJson<CatalogManifest>(MANIFEST_PATH);
-  return manifest?.ids ?? [];
+  try {
+    const manifest = await readJson<CatalogManifest>(MANIFEST_PATH);
+    return manifest?.ids ?? [];
+  } catch (error) {
+    console.error("Error leyendo gifts/manifest.json:", error);
+    return [];
+  }
 }
 
 export async function readCatalogRow(id: string): Promise<RawGiftRow | null> {
   await ensureCatalogMigrated();
 
-  const row = await readJson<RawGiftRow>(giftCatalogPath(id));
-  if (row) return row;
+  try {
+    const row = await readJson<RawGiftRow>(giftCatalogPath(id));
+    if (row?.id && row?.nombre) return row;
+  } catch (error) {
+    console.error(`Error leyendo ${giftCatalogPath(id)}:`, error);
+  }
 
-  const legacy =
-    (await readJson<RawGiftRow[]>(LEGACY_CATALOG_PATH)) ??
-    (await readLocalSeedCatalog());
-  const fromLegacy = legacy?.find((gift) => gift.id === id);
-  if (!fromLegacy) return null;
+  try {
+    const legacy =
+      (await readJson<RawGiftRow[]>(LEGACY_CATALOG_PATH)) ??
+      (await readLocalSeedCatalog());
+    const fromLegacy = legacy?.find((gift) => gift.id === id);
+    if (!fromLegacy) return null;
 
-  const gift = normalizeGift(fromLegacy);
-  await writeJson(
-    giftCatalogPath(id),
-    giftForStorage({ ...gift, reservas: [], estado: "disponible" }),
-  );
-  return fromLegacy;
+    const gift = normalizeGift(fromLegacy);
+    await writeJson(
+      giftCatalogPath(id),
+      giftForStorage({ ...gift, reservas: [], estado: "disponible" }),
+    );
+    return fromLegacy;
+  } catch (error) {
+    console.error(`No se pudo reconstruir el regalo ${id}:`, error);
+    return null;
+  }
 }
 
 export async function writeCatalogGift(gift: Gift): Promise<void> {
