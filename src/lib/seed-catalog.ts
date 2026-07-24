@@ -2,7 +2,13 @@ import { promises as fs } from "fs";
 import path from "path";
 import type { Category } from "@/types/category";
 import type { Gift } from "@/types/gift";
-import { writeJson } from "@/lib/json-storage";
+import { readJson, writeJson } from "@/lib/json-storage";
+
+const VERSION_FILENAME = "catalog-version.json";
+
+interface CatalogVersion {
+  version: number;
+}
 
 async function readSeedFile<T>(filename: string): Promise<T> {
   const filePath = path.join(process.cwd(), "data", filename);
@@ -10,19 +16,50 @@ async function readSeedFile<T>(filename: string): Promise<T> {
   return JSON.parse(raw) as T;
 }
 
-export async function applySeedCatalog(): Promise<{
+async function readSeedVersion(): Promise<number> {
+  const meta = await readSeedFile<CatalogVersion>(VERSION_FILENAME);
+  return meta.version;
+}
+
+async function readStoredVersion(): Promise<number> {
+  const stored = await readJson<CatalogVersion>(VERSION_FILENAME);
+  return stored?.version ?? 0;
+}
+
+/** Aplica la plantilla del repo si el deploy trae una versión más nueva que Blob. */
+export async function ensureCatalogSynced(): Promise<void> {
+  const [seedVersion, storedVersion] = await Promise.all([
+    readSeedVersion(),
+    readStoredVersion(),
+  ]);
+
+  if (seedVersion <= storedVersion) return;
+
+  await applySeedCatalog(seedVersion);
+}
+
+export async function applySeedCatalog(
+  version?: number,
+): Promise<{
   giftCount: number;
   categoryCount: number;
+  version: number;
 }> {
-  const [gifts, categories] = await Promise.all([
+  const [gifts, categories, seedVersion] = await Promise.all([
     readSeedFile<Gift[]>("gifts.json"),
     readSeedFile<Category[]>("categories.json"),
+    version !== undefined ? Promise.resolve(version) : readSeedVersion(),
   ]);
 
   await Promise.all([
     writeJson("gifts.json", gifts),
     writeJson("categories.json", categories),
+    writeJson(VERSION_FILENAME, { version: seedVersion }),
   ]);
 
-  return { giftCount: gifts.length, categoryCount: categories.length };
+  return {
+    giftCount: gifts.length,
+    categoryCount: categories.length,
+    version: seedVersion,
+  };
 }

@@ -1,10 +1,12 @@
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
 import { DEFAULT_GIFT_EMOJI, isValidGiftEmoji } from "@/lib/gift-emoji";
+import { ensureCatalogSynced } from "@/lib/seed-catalog";
 import { readJsonWithSeed, writeJson, isUsingBlobStorage } from "@/lib/json-storage";
 
 const FILENAME = "gifts.json";
 
 async function readGiftsFile(): Promise<Gift[]> {
+  await ensureCatalogSynced();
   return readJsonWithSeed<Gift[]>(FILENAME);
 }
 
