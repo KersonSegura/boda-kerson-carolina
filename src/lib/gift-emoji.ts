@@ -1,39 +1,15 @@
-/** Emojis disponibles para elegir en el admin */
-export const GIFT_EMOJI_OPTIONS = [
-  "🎁",
-  "🍽️",
-  "🍳",
-  "🥂",
-  "🧁",
-  "🛏️",
-  "☕",
-  "🔪",
-  "🥤",
-  "🛁",
-  "🏠",
-  "🛋️",
-  "🪴",
-  "🕯️",
-  "🧺",
-  "🍴",
-  "🥄",
-  "🫖",
-  "🧊",
-  "📺",
-  "💡",
-  "🪑",
-  "🚿",
-  "🧹",
-] as const;
+export const DEFAULT_GIFT_EMOJI = "🎁";
 
-export const DEFAULT_GIFT_EMOJI = GIFT_EMOJI_OPTIONS[0];
-
+/** Acepta emojis Unicode estándar (incluye tonos de piel y secuencias ZWJ). */
 export function isValidGiftEmoji(value: string): boolean {
-  return GIFT_EMOJI_OPTIONS.includes(value as (typeof GIFT_EMOJI_OPTIONS)[number]);
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 32) return false;
+  if (/[a-zA-Z0-9<>{}]/.test(trimmed)) return false;
+  return /\p{Extended_Pictographic}/u.test(trimmed);
 }
 
-/** Fallback para regalos antiguos sin emoji guardado */
-export function resolveGiftEmoji(gift: { nombre: string; emoji?: string }): string {
+/** Fallback para regalos sin emoji guardado o con valor inválido. */
+export function resolveGiftEmoji(gift: { emoji?: string }): string {
   if (gift.emoji && isValidGiftEmoji(gift.emoji)) {
     return gift.emoji;
   }

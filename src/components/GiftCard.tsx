@@ -40,14 +40,16 @@ export function GiftCard({ gift, categoriaNombre, onSelect }: GiftCardProps) {
       </div>
 
       <div className="mt-5 space-y-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-sage-700">
-            Especificaciones
-          </p>
-          <p className="mt-1.5 text-base leading-relaxed text-sage-800">
-            {gift.especificaciones || "—"}
-          </p>
-        </div>
+        {gift.especificaciones.trim() && (
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-sage-700">
+              Especificaciones
+            </p>
+            <p className="mt-1.5 text-base leading-relaxed text-sage-800">
+              {gift.especificaciones}
+            </p>
+          </div>
+        )}
 
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-sage-700">
