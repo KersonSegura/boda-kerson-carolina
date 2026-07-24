@@ -19,7 +19,6 @@ import {
   clearAllReservations,
   clearGiftReservations,
   readGiftReservations,
-  readGiftReservationsWithRetry,
   writeGiftReservations,
 } from "@/lib/reservations-store";
 
@@ -179,25 +178,12 @@ export async function reserveGift(
 
     await writeGiftReservations(id, updatedReservas);
 
-    const saved = await readGiftReservationsWithRetry(
-      id,
-      updatedReservas.length,
-    );
-
-    const savedCount = saved.length;
-    if (savedCount < updatedReservas.length) {
-      return {
-        error:
-          "No se pudo confirmar la reserva en el servidor. Intenta de nuevo.",
-      };
-    }
-
     const gift: Gift = {
       ...giftMeta,
-      reservas: saved,
+      reservas: updatedReservas,
       estado: syncGiftEstado({
         cantidad: giftMeta.cantidad,
-        reservas: saved,
+        reservas: updatedReservas,
       }),
     };
 
