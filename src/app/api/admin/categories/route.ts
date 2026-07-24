@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { storageErrorResponse } from "@/lib/api-error";
 import {
   createCategory,
   deleteCategory,
@@ -12,8 +13,21 @@ export async function GET() {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  const categories = await getAllCategories();
-  return NextResponse.json(categories);
+
+  try {
+    const categories = await getAllCategories();
+    return NextResponse.json(categories, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
+  } catch (error) {
+    const { message, status } = storageErrorResponse(
+      error,
+      "No se pudieron cargar las categorías",
+    );
+    return NextResponse.json({ error: message }, { status });
+  }
 }
 
 export async function POST(request: Request) {

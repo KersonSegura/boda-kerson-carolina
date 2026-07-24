@@ -59,6 +59,7 @@ export function AdminPanel() {
   const [categoryError, setCategoryError] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
   const [giftSearch, setGiftSearch] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const categoryMap = useMemo(
     () => new Map(categories.map((c) => [c.id, c.nombre])),
@@ -82,20 +83,43 @@ export function AdminPanel() {
       cache: "no-store",
       headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
     });
-    if (res.ok) setGifts(res.data);
+    if (res.ok) {
+      setGifts(res.data);
+      return true;
+    }
+    setLoadError(res.error);
+    return false;
   }, []);
 
   const fetchCategories = useCallback(async () => {
-    const res = await fetchJson<Category[]>("/api/admin/categories", {
-      cache: "no-store",
-    });
-    if (res.ok) setCategories(res.data);
+    const res = await fetchJson<Category[]>(
+      `/api/admin/categories?t=${Date.now()}`,
+      {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      },
+    );
+    if (res.ok) {
+      setCategories(res.data);
+      return true;
+    }
+    setLoadError(res.error);
+    return false;
   }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
-      await Promise.all([fetchGifts(), fetchCategories()]);
+      const [giftsOk, categoriesOk] = await Promise.all([
+        fetchGifts(),
+        fetchCategories(),
+      ]);
+      if (!giftsOk && !categoriesOk) {
+        setLoadError(
+          "No se pudo conectar con el almacenamiento. Si el error es 403, revisa Vercel → Storage.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -474,10 +498,7 @@ export function AdminPanel() {
         </section>
 
         {/* Formulario regalo */}
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl border border-beige-200 bg-beige-50 p-5"
-        >
+        <section className="rounded-2xl border border-beige-200 bg-beige-50 p-5">
           <h2 className="flex items-center gap-2 font-serif text-lg text-sage-900">
             {editingId ? (
               <>
@@ -492,11 +513,14 @@ export function AdminPanel() {
             )}
           </h2>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4">
             <EmojiPicker
               value={form.emoji}
-              onChange={(emoji) => setForm({ ...form, emoji })}
+              onChange={(emoji) => setForm((prev) => ({ ...prev, emoji }))}
             />
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-4 space-y-3">
             <input
               type="text"
               value={form.nombre}
@@ -549,35 +573,48 @@ export function AdminPanel() {
                 </option>
               ))}
             </select>
-          </div>
 
-          {formError && (
-            <p className="mt-2 text-sm text-red-600">{formError}</p>
-          )}
-
-          <div className="mt-4 flex gap-2">
-            {editingId && (
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="flex-1 rounded-xl border border-beige-200 py-2.5 text-sm text-gray-600 hover:bg-white"
-              >
-                Cancelar
-              </button>
+            {formError && (
+              <p className="text-sm text-red-600">{formError}</p>
             )}
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 rounded-xl bg-sage-700 py-2.5 text-sm font-medium text-white hover:bg-sage-800 disabled:opacity-60"
-            >
-              {saving ? "Guardando…" : editingId ? "Actualizar" : "Agregar"}
-            </button>
-          </div>
-        </form>
+
+            <div className="flex gap-2 pt-1">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="flex-1 rounded-xl border border-beige-200 py-2.5 text-sm text-gray-600 hover:bg-white"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 rounded-xl bg-sage-700 py-2.5 text-sm font-medium text-white hover:bg-sage-800 disabled:opacity-60"
+              >
+                {saving ? "Guardando…" : editingId ? "Actualizar" : "Agregar"}
+              </button>
+            </div>
+          </form>
+        </section>
 
         {/* Lista regalos */}
         <section className="space-y-3">
           <h2 className="font-serif text-lg text-sage-900">Regalos</h2>
+
+          {loadError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+              {loadError}
+              <button
+                type="button"
+                onClick={() => void fetchAll()}
+                className="mt-2 block font-semibold underline"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
 
           <GiftSearchBar
             id="admin-gift-search"
