@@ -56,9 +56,22 @@ export function GiftListPage({
   }, []);
 
   useEffect(() => {
-    const onFocus = () => fetchData();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    let tabWasHidden = false;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        tabWasHidden = true;
+        return;
+      }
+      if (tabWasHidden && document.visibilityState === "visible") {
+        tabWasHidden = false;
+        void fetchData();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [fetchData]);
 
   useEffect(() => {

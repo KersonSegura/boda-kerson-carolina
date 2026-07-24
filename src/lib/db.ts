@@ -48,9 +48,12 @@ export function getSql(): ReturnType<typeof postgres> {
 
     sqlInstance = postgres(url, {
       ssl: "require",
+      /** Obligatorio con el pooler de Supabase (POSTGRES_URL en Vercel). */
+      prepare: false,
       max: 1,
-      idle_timeout: 20,
-      connect_timeout: 10,
+      idle_timeout: 5,
+      connect_timeout: 15,
+      max_lifetime: 60 * 10,
     });
   }
 
