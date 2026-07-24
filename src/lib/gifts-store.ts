@@ -152,12 +152,6 @@ export async function deleteGift(id: string): Promise<boolean> {
   return true;
 }
 
-const MAX_RESERVE_ATTEMPTS = 5;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function reserveGift(
   id: string,
   nombre: string,
@@ -167,69 +161,54 @@ export async function reserveGift(
   if (!trimmedName) return { error: "El nombre es requerido" };
 
   try {
-    const reservadoEn = new Date().toISOString();
-    const newReservation: GiftReservation = {
-      nombre: trimmedName,
-      reservadoEn,
-      ...(requestId && { requestId }),
-    };
+    const row = await readCatalogRow(id);
+    if (!row) return { error: "Regalo no encontrado" };
 
-    for (let attempt = 0; attempt < MAX_RESERVE_ATTEMPTS; attempt++) {
-      const row = await readCatalogRow(id);
-      if (!row) return { error: "Regalo no encontrado" };
+    const giftMeta = normalizeGift(row);
+    const current = await readGiftReservations(id);
 
-      const giftMeta = normalizeGift(row);
-      const current = await readGiftReservations(id);
-
-      if (requestId) {
-        const duplicate = current.find(
-          (reserva) => reserva.requestId === requestId,
-        );
-        if (duplicate) {
-          return {
-            gift: {
-              ...giftMeta,
-              reservas: current,
-              estado: syncGiftEstado({
-                cantidad: giftMeta.cantidad,
-                reservas: current,
-              }),
-            },
-          };
-        }
-      }
-
-      if (!isGiftAvailable({ cantidad: giftMeta.cantidad, reservas: current })) {
-        return { error: "Este regalo ya no tiene cupos disponibles" };
-      }
-
-      const updatedReservas: GiftReservation[] = [...current, newReservation];
-      await writeGiftReservations(id, updatedReservas);
-
-      const saved = await readGiftReservations(id);
-      const reservationSaved = requestId
-        ? saved.some((reserva) => reserva.requestId === requestId)
-        : saved.length >= updatedReservas.length;
-
-      if (reservationSaved) {
+    if (requestId) {
+      const duplicate = current.find(
+        (reserva) => reserva.requestId === requestId,
+      );
+      if (duplicate) {
         return {
           gift: {
             ...giftMeta,
-            reservas: saved,
+            reservas: current,
             estado: syncGiftEstado({
               cantidad: giftMeta.cantidad,
-              reservas: saved,
+              reservas: current,
             }),
           },
         };
       }
-
-      await sleep(100 * (attempt + 1));
     }
 
+    if (!isGiftAvailable({ cantidad: giftMeta.cantidad, reservas: current })) {
+      return { error: "Este regalo ya no tiene cupos disponibles" };
+    }
+
+    const updatedReservas: GiftReservation[] = [
+      ...current,
+      {
+        nombre: trimmedName,
+        reservadoEn: new Date().toISOString(),
+        ...(requestId && { requestId }),
+      },
+    ];
+
+    await writeGiftReservations(id, updatedReservas);
+
     return {
-      error:
-        "No se pudo confirmar la reserva por concurrencia. Recarga e intenta de nuevo.",
+      gift: {
+        ...giftMeta,
+        reservas: updatedReservas,
+        estado: syncGiftEstado({
+          cantidad: giftMeta.cantidad,
+          reservas: updatedReservas,
+        }),
+      },
     };
   } catch (error) {
     const detail =
