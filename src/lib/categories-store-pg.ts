@@ -11,7 +11,6 @@ function slugify(text: string): string {
 }
 
 export async function pgGetAllCategories(): Promise<Category[]> {
-  await ensureSchema();
   const sql = getSql();
 
   return sql<Category[]>`
@@ -24,7 +23,6 @@ export async function pgGetAllCategories(): Promise<Category[]> {
 export async function pgCreateCategory(
   input: CreateCategoryInput,
 ): Promise<Category | { error: string }> {
-  await ensureSchema();
   const sql = getSql();
 
   const nombre = input.nombre.trim();
@@ -50,7 +48,6 @@ export async function pgCreateCategory(
 }
 
 export async function pgDeleteCategory(id: string): Promise<boolean> {
-  await ensureSchema();
   const sql = getSql();
   const deleted = await sql`DELETE FROM categories WHERE id = ${id} RETURNING id`;
   return deleted.length > 0;

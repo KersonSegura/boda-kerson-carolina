@@ -83,23 +83,6 @@ function assembleGift(row: GiftRow, reservas: GiftReservation[]): Gift | null {
   };
 }
 
-async function readAllReservations(): Promise<Map<string, GiftReservation[]>> {
-  const sql = getSql();
-  const rows = await sql<ReservationRow[]>`
-    SELECT gift_id, nombre, reservado_en, request_id
-    FROM reservations
-    ORDER BY reservado_en ASC
-  `;
-
-  const map = new Map<string, GiftReservation[]>();
-  for (const row of rows) {
-    const list = map.get(row.gift_id) ?? [];
-    list.push(rowToReservation(row));
-    map.set(row.gift_id, list);
-  }
-  return map;
-}
-
 async function loadGiftFromDb(id: string): Promise<Gift | null> {
   const sql = getSql();
   const rows = (await sql`
@@ -126,36 +109,70 @@ async function loadGiftFromDb(id: string): Promise<Gift | null> {
 }
 
 export async function pgGetAllGifts(): Promise<Gift[]> {
-  await ensureSchema();
   const sql = getSql();
 
   const rows = (await sql`
-    SELECT id, nombre, emoji, especificaciones, cantidad, categoria_id, sort_order
-    FROM gifts
-    WHERE id IS NOT NULL AND BTRIM(id) <> ''
-    ORDER BY sort_order ASC, id ASC
+    SELECT
+      g.id,
+      g.nombre,
+      g.emoji,
+      g.especificaciones,
+      g.cantidad,
+      g.categoria_id,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'nombre', r.nombre,
+            'reservadoEn', r.reservado_en,
+            'requestId', r.request_id
+          )
+          ORDER BY r.reservado_en
+        ) FILTER (WHERE r.id IS NOT NULL),
+        '[]'::json
+      ) AS reservas
+    FROM gifts g
+    LEFT JOIN reservations r ON r.gift_id = g.id
+    WHERE g.id IS NOT NULL AND BTRIM(g.id) <> ''
+    GROUP BY g.id, g.nombre, g.emoji, g.especificaciones, g.cantidad, g.categoria_id, g.sort_order
+    ORDER BY g.sort_order ASC, g.id ASC
   `) as Record<string, unknown>[];
 
-  const reservationsByGift = await readAllReservations();
   return rows
     .map((row) => {
       const mapped = mapGiftRow(row);
-      return assembleGift(
-        mapped,
-        reservationsByGift.get(mapped.id) ?? [],
-      );
+      const rawReservas = row.reservas;
+      const reservas = Array.isArray(rawReservas)
+        ? rawReservas
+            .map((entry) => {
+              if (!entry || typeof entry !== "object") return null;
+              const item = entry as Record<string, unknown>;
+              return rowToReservation({
+                gift_id: mapped.id,
+                nombre: String(item.nombre ?? ""),
+                reservado_en: (item.reservadoEn ?? item.reservado_en) as
+                  | Date
+                  | string,
+                request_id: item.requestId
+                  ? String(item.requestId)
+                  : item.request_id
+                    ? String(item.request_id)
+                    : null,
+              });
+            })
+            .filter((item): item is GiftReservation => item !== null)
+        : [];
+
+      return assembleGift(mapped, reservas);
     })
     .filter((gift): gift is Gift => gift !== null);
 }
 
 export async function pgGetGiftById(id: string): Promise<Gift | undefined> {
-  await ensureSchema();
   const gift = await loadGiftFromDb(id);
   return gift ?? undefined;
 }
 
 export async function pgCreateGift(input: CreateGiftInput): Promise<Gift> {
-  await ensureSchema();
   const sql = getSql();
 
   const id = crypto.randomUUID();
@@ -195,7 +212,6 @@ export async function pgUpdateGift(
   id: string,
   input: UpdateGiftInput,
 ): Promise<Gift | null> {
-  await ensureSchema();
   const sql = getSql();
 
   const current = await loadGiftFromDb(id);
@@ -253,7 +269,6 @@ export async function pgUpdateGift(
 }
 
 export async function pgDeleteGift(id: string): Promise<boolean> {
-  await ensureSchema();
   const sql = getSql();
   const deleted = await sql`DELETE FROM gifts WHERE id = ${id} RETURNING id`;
   return deleted.length > 0;
@@ -264,7 +279,6 @@ export async function pgReserveGift(
   nombre: string,
   requestId?: string,
 ): Promise<{ gift: Gift } | { error: string }> {
-  await ensureSchema();
   const sql = getSql();
 
   const trimmedName = nombre.trim();
@@ -388,7 +402,6 @@ export async function pgResetCatalogFromSeed(
 }
 
 export async function pgCountGifts(): Promise<number> {
-  await ensureSchema();
   const sql = getSql();
   const rows = await sql<{ count: string }[]>`
     SELECT COUNT(*)::text AS count FROM gifts

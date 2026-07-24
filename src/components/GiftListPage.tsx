@@ -18,16 +18,18 @@ import { ReserveModal } from "./ReserveModal";
 import { SectionDivider } from "./SectionDivider";
 
 interface GiftListPageProps {
-  initialGifts: PublicGift[];
-  initialCategories: Category[];
+  initialGifts?: PublicGift[];
+  initialCategories?: Category[];
 }
 
 export function GiftListPage({
-  initialGifts,
-  initialCategories,
+  initialGifts = [],
+  initialCategories = [],
 }: GiftListPageProps) {
   const [gifts, setGifts] = useState<PublicGift[]>(initialGifts);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [loading, setLoading] = useState(initialGifts.length === 0);
+  const [loadError, setLoadError] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGift, setSelectedGift] = useState<PublicGift | null>(null);
@@ -35,6 +37,43 @@ export function GiftListPage({
   const [reserveError, setReserveError] = useState("");
   const [savingGiftIds, setSavingGiftIds] = useState<Set<string>>(new Set());
   const reservingRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (initialGifts.length > 0) return;
+
+    let cancelled = false;
+
+    async function loadCatalog() {
+      setLoading(true);
+      setLoadError("");
+
+      const [giftsRes, categoriesRes] = await Promise.all([
+        fetchJson<PublicGift[]>("/api/gifts", { cache: "no-store" }),
+        fetchJson<Category[]>("/api/categories", { cache: "no-store" }),
+      ]);
+
+      if (cancelled) return;
+
+      if (giftsRes.ok) {
+        setGifts(giftsRes.data);
+      } else {
+        setLoadError(giftsRes.error);
+      }
+
+      if (categoriesRes.ok) {
+        setCategories(categoriesRes.data);
+      } else if (!giftsRes.ok && categoriesRes.error) {
+        setLoadError(categoriesRes.error);
+      }
+
+      setLoading(false);
+    }
+
+    void loadCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialGifts.length]);
 
   useEffect(() => {
     if (savingGiftIds.size === 0) return;
@@ -233,24 +272,34 @@ export function GiftListPage({
         />
 
         <p className="mb-5 text-center text-base font-medium text-sage-700">
-          {totalCount} regalo{totalCount !== 1 ? "s" : ""} — {availableCount}{" "}
-          disponible{availableCount !== 1 ? "s" : ""}
+          {loading
+            ? "Cargando regalos…"
+            : `${totalCount} regalo${totalCount !== 1 ? "s" : ""} — ${availableCount} disponible${availableCount !== 1 ? "s" : ""}`}
         </p>
 
-        {reserveError && (
+        {loadError && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {reserveError}
+            {loadError}
             <button
               type="button"
-              onClick={() => setReserveError("")}
+              onClick={() => window.location.reload()}
               className="mt-1 block font-semibold underline"
             >
-              Cerrar
+              Reintentar
             </button>
           </div>
         )}
 
-        {filteredGifts.length === 0 ? (
+        {loading ? (
+          <div className="grid gap-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-28 animate-pulse rounded-2xl border-2 border-beige-100 bg-beige-50"
+              />
+            ))}
+          </div>
+        ) : filteredGifts.length === 0 ? (
           <p className="py-12 text-center text-base text-sage-600">
             {gifts.length === 0
               ? "Aún no hay regalos en la lista."
@@ -278,7 +327,20 @@ export function GiftListPage({
           </div>
         )}
 
-        {filteredGifts.length > 0 && (
+        {reserveError && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {reserveError}
+            <button
+              type="button"
+              onClick={() => setReserveError("")}
+              className="mt-1 block font-semibold underline"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {!loading && filteredGifts.length > 0 && (
           <div className="mt-8 flex justify-center pb-4">
             <button
               type="button"
