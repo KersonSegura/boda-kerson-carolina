@@ -19,6 +19,7 @@ import {
   clearAllReservations,
   clearGiftReservations,
   readGiftReservations,
+  warmReservationStorageMode,
   writeGiftReservations,
 } from "@/lib/reservations-store";
 
@@ -42,10 +43,11 @@ async function loadGift(id: string): Promise<Gift | null> {
   }
 }
 
-const LOAD_BATCH_SIZE = 12;
+const LOAD_BATCH_SIZE = 24;
 
 async function loadAllGifts(): Promise<Gift[]> {
   await ensureCatalogMigrated();
+  await warmReservationStorageMode();
 
   let ids: string[] = [];
   try {

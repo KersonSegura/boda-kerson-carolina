@@ -5,6 +5,22 @@ const LEGACY_MAP_PATH = "reservations.json";
 
 let migrationPromise: Promise<void> | null = null;
 
+/** Evita listar Blob en cada regalo sin archivo de reservas. */
+let reservationStorageMode: "unknown" | "per-gift" | "legacy" = "unknown";
+
+function invalidateReservationStorageMode(): void {
+  reservationStorageMode = "unknown";
+}
+
+async function getReservationStorageMode(): Promise<"per-gift" | "legacy"> {
+  if (reservationStorageMode === "per-gift") return "per-gift";
+  if (reservationStorageMode === "legacy") return "legacy";
+
+  const files = await listPathnames("reservations/");
+  reservationStorageMode = files.length > 0 ? "per-gift" : "legacy";
+  return reservationStorageMode;
+}
+
 export function giftReservationsPath(id: string): string {
   return `reservations/${id}.json`;
 }
@@ -98,7 +114,7 @@ export async function readGiftReservations(id: string): Promise<GiftReservation[
   if (fromFile !== null) return fromFile;
 
   // Si ya hay archivos por regalo en Blob, ausencia = sin reservas.
-  if (await hasPerGiftReservationFiles()) return [];
+  if ((await getReservationStorageMode()) === "per-gift") return [];
 
   const legacy = await readLegacyMap();
   return legacy[id] ?? [];
@@ -109,6 +125,7 @@ export async function writeGiftReservations(
   reservas: GiftReservation[],
 ): Promise<void> {
   await writeJson(giftReservationsPath(id), { reservas });
+  reservationStorageMode = "per-gift";
 }
 
 export async function clearGiftReservations(giftId: string): Promise<void> {
@@ -136,4 +153,11 @@ export async function clearAllReservations(): Promise<void> {
   const files = await listPathnames("reservations/");
   await Promise.all(files.map((pathname) => deleteJson(pathname)));
   migrationPromise = null;
+  invalidateReservationStorageMode();
+}
+
+/** Precalienta el modo de almacenamiento una sola vez por carga masiva. */
+export async function warmReservationStorageMode(): Promise<void> {
+  await ensureReservationsMigrated();
+  await getReservationStorageMode();
 }
