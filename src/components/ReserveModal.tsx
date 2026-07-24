@@ -37,13 +37,18 @@ export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
       return;
     }
 
+    if (!gift?.id) {
+      setError("No se pudo identificar el regalo. Recarga la página.");
+      return;
+    }
+
     submitLockRef.current = true;
     setLoading(true);
     setError("");
 
     try {
       const requestId = crypto.randomUUID();
-      await onReserve(gift!.id, nombre.trim(), requestId);
+      await onReserve(gift.id, nombre.trim(), requestId);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al reservar");

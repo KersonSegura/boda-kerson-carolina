@@ -2,14 +2,13 @@
 
 import Image from "next/image";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Category } from "@/types/category";
 import type { PublicGift } from "@/types/gift";
 import { fetchJson } from "@/lib/fetch-json";
 import { matchesGiftSearch } from "@/lib/gift-search";
 import {
   applyOptimisticReservation,
-  mergePublicGifts,
 } from "@/lib/gift-utils";
 import { CategoryFilter } from "./CategoryFilter";
 import { ContactModal } from "./ContactModal";
@@ -37,42 +36,15 @@ export function GiftListPage({
   const [savingGiftIds, setSavingGiftIds] = useState<Set<string>>(new Set());
   const reservingRef = useRef<Set<string>>(new Set());
 
-  const fetchData = useCallback(async () => {
-    const cacheBust = Date.now();
-    const [giftsRes, categoriesRes] = await Promise.all([
-      fetchJson<PublicGift[]>(`/api/gifts?t=${cacheBust}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-      }),
-      fetchJson<Category[]>(`/api/categories?t=${cacheBust}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-      }),
-    ]);
-    if (giftsRes.ok) {
-      setGifts((prev) => mergePublicGifts(prev, giftsRes.data));
-    }
-    if (categoriesRes.ok) setCategories(categoriesRes.data);
-  }, []);
-
   useEffect(() => {
-    let tabWasHidden = false;
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        tabWasHidden = true;
-        return;
-      }
-      if (tabWasHidden && document.visibilityState === "visible") {
-        tabWasHidden = false;
-        void fetchData();
-      }
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [fetchData]);
+    if (!selectedGift?.id) return;
+    const fresh = gifts.find((gift) => gift.id === selectedGift.id);
+    if (fresh) {
+      setSelectedGift(fresh);
+    } else {
+      setSelectedGift(null);
+    }
+  }, [gifts, selectedGift?.id]);
 
   useEffect(() => {
     if (savingGiftIds.size === 0) return;
@@ -88,6 +60,7 @@ export function GiftListPage({
 
   const filteredGifts = useMemo(() => {
     return gifts.filter((gift) => {
+      if (!gift.id) return false;
       const matchesCategory =
         !selectedCategory || gift.categoriaId === selectedCategory;
       const matchesSearch = matchesGiftSearch(gift.nombre, searchQuery);
@@ -98,6 +71,7 @@ export function GiftListPage({
   const hasActiveFilters = Boolean(selectedCategory || searchQuery.trim());
 
   const handleSelectGift = (gift: PublicGift) => {
+    if (!gift.id) return;
     if (
       gift.reservados < gift.cantidad &&
       !savingGiftIds.has(gift.id) &&
@@ -112,6 +86,10 @@ export function GiftListPage({
     nombre: string,
     requestId: string,
   ) => {
+    if (!giftId) {
+      setReserveError("No se pudo identificar el regalo. Recarga la página.");
+      throw new Error("Regalo inválido");
+    }
     if (reservingRef.current.has(giftId)) return;
 
     reservingRef.current.add(giftId);

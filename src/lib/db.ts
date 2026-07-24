@@ -54,6 +54,7 @@ export function getSql(): ReturnType<typeof postgres> {
       idle_timeout: 5,
       connect_timeout: 15,
       max_lifetime: 60 * 10,
+      onnotice: () => {},
     });
   }
 
