@@ -15,22 +15,28 @@ export async function PUT(request: Request, { params }: RouteContext) {
   }
 
   const { id } = await params;
-  const body = await request.json();
 
-  const gift = await updateGift(id, {
-    nombre: body.nombre,
-    emoji: body.emoji,
-    especificaciones: body.especificaciones,
-    categoriaId: body.categoriaId,
-    estado: body.estado,
-    reservadoPor: body.reservadoPor,
-  });
+  try {
+    const body = await request.json();
+    const gift = await updateGift(id, {
+      nombre: body.nombre,
+      emoji: body.emoji,
+      especificaciones: body.especificaciones,
+      cantidad: body.cantidad,
+      categoriaId: body.categoriaId,
+      clearReservas: body.clearReservas === true,
+    });
 
-  if (!gift) {
-    return NextResponse.json({ error: "Regalo no encontrado" }, { status: 404 });
+    if (!gift) {
+      return NextResponse.json({ error: "Regalo no encontrado" }, { status: 404 });
+    }
+
+    return NextResponse.json(gift);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "No se pudo actualizar el regalo";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
-
-  return NextResponse.json(gift);
 }
 
 export async function DELETE(_request: Request, { params }: RouteContext) {

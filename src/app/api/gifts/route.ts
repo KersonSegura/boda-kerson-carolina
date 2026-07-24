@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     nombre: body.nombre,
     emoji: body.emoji ?? "",
     especificaciones: body.especificaciones ?? "",
+    cantidad: body.cantidad,
     categoriaId: body.categoriaId,
   });
 

@@ -1,5 +1,12 @@
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
 import { DEFAULT_GIFT_EMOJI, normalizeGiftEmoji } from "@/lib/gift-emoji";
+import {
+  isGiftAvailable,
+  normalizeCantidad,
+  normalizeGift,
+  normalizeGifts,
+  syncGiftEstado,
+} from "@/lib/gift-model";
 import { ensureCatalogSynced } from "@/lib/seed-catalog";
 import { readJsonWithSeed, writeJson, isUsingBlobStorage } from "@/lib/json-storage";
 
@@ -7,7 +14,8 @@ const FILENAME = "gifts.json";
 
 async function readGiftsFile(): Promise<Gift[]> {
   await ensureCatalogSynced();
-  return readJsonWithSeed<Gift[]>(FILENAME);
+  const raw = await readJsonWithSeed<Gift[]>(FILENAME);
+  return normalizeGifts(raw as Gift[]);
 }
 
 async function writeGiftsFile(gifts: Gift[]): Promise<void> {
@@ -30,6 +38,8 @@ export async function createGift(input: CreateGiftInput): Promise<Gift> {
     nombre: input.nombre.trim(),
     emoji: normalizeGiftEmoji(input.emoji),
     especificaciones: input.especificaciones.trim(),
+    cantidad: normalizeCantidad(input.cantidad),
+    reservas: [],
     estado: "disponible",
     ...(input.categoriaId && { categoriaId: input.categoriaId }),
   };
@@ -46,7 +56,17 @@ export async function updateGift(
   const index = gifts.findIndex((gift) => gift.id === id);
   if (index === -1) return null;
 
-  const current = gifts[index];
+  const current = normalizeGift(gifts[index]);
+
+  if (input.cantidad !== undefined) {
+    const cantidad = normalizeCantidad(input.cantidad);
+    if (cantidad < current.reservas.length) {
+      throw new Error(
+        `La cantidad no puede ser menor que las reservas actuales (${current.reservas.length})`,
+      );
+    }
+  }
+
   const updated: Gift = {
     ...current,
     ...(input.nombre !== undefined && { nombre: input.nombre.trim() }),
@@ -56,7 +76,9 @@ export async function updateGift(
     ...(input.especificaciones !== undefined && {
       especificaciones: input.especificaciones.trim(),
     }),
-    ...(input.estado !== undefined && { estado: input.estado }),
+    ...(input.cantidad !== undefined && {
+      cantidad: normalizeCantidad(input.cantidad),
+    }),
   };
 
   if (input.categoriaId === null) {
@@ -65,18 +87,11 @@ export async function updateGift(
     updated.categoriaId = input.categoriaId;
   }
 
-  if (input.reservadoPor === null) {
-    delete updated.reservadoPor;
-    delete updated.reservadoEn;
-  } else if (input.reservadoPor !== undefined) {
-    updated.reservadoPor = input.reservadoPor.trim();
-    updated.reservadoEn = new Date().toISOString();
+  if (input.clearReservas) {
+    updated.reservas = [];
   }
 
-  if (input.estado === "disponible") {
-    delete updated.reservadoPor;
-    delete updated.reservadoEn;
-  }
+  updated.estado = syncGiftEstado(updated);
 
   gifts[index] = updated;
   await writeGiftsFile(gifts);
@@ -100,9 +115,9 @@ export async function reserveGift(
     const index = gifts.findIndex((gift) => gift.id === id);
     if (index === -1) return { error: "Regalo no encontrado" };
 
-    const current = gifts[index];
-    if (current.estado === "reservado") {
-      return { error: "Este regalo ya fue reservado" };
+    const current = normalizeGift(gifts[index]);
+    if (!isGiftAvailable(current)) {
+      return { error: "Este regalo ya no tiene cupos disponibles" };
     }
 
     const trimmedName = nombre.trim();
@@ -110,10 +125,15 @@ export async function reserveGift(
 
     const updated: Gift = {
       ...current,
-      estado: "reservado",
-      reservadoPor: trimmedName,
-      reservadoEn: new Date().toISOString(),
+      reservas: [
+        ...current.reservas,
+        {
+          nombre: trimmedName,
+          reservadoEn: new Date().toISOString(),
+        },
+      ],
     };
+    updated.estado = syncGiftEstado(updated);
 
     gifts[index] = updated;
     await writeGiftsFile(gifts);

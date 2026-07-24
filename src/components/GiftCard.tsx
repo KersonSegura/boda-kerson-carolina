@@ -12,7 +12,8 @@ interface GiftCardProps {
 
 export function GiftCard({ gift, categoriaNombre, onSelect }: GiftCardProps) {
   const emoji = gift.emoji?.trim() || DEFAULT_GIFT_EMOJI;
-  const isAvailable = gift.estado === "disponible";
+  const isAvailable = gift.reservados < gift.cantidad;
+  const showReservationCount = gift.cantidad > 1;
 
   return (
     <button
@@ -63,6 +64,12 @@ export function GiftCard({ gift, categoriaNombre, onSelect }: GiftCardProps) {
         {isAvailable ? (
           <p className="text-base font-semibold text-sage-700">
             Toca aquí para reservar →
+            {showReservationCount && (
+              <span className="font-medium text-sage-600">
+                {" "}
+                · {gift.reservados}/{gift.cantidad} reservados
+              </span>
+            )}
           </p>
         ) : (
           <p className="text-base font-semibold text-red-800">

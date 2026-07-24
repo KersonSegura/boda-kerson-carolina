@@ -52,7 +52,7 @@ export function GiftListPage({
   }, [gifts, selectedCategory]);
 
   const handleSelectGift = (gift: PublicGift) => {
-    if (gift.estado === "disponible") {
+    if (gift.reservados < gift.cantidad) {
       setSelectedGift(gift);
     }
   };

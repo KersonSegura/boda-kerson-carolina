@@ -17,6 +17,7 @@ import {
 import type { Category } from "@/types/category";
 import type { Gift } from "@/types/gift";
 import { fetchJson } from "@/lib/fetch-json";
+import { isGiftAvailable } from "@/lib/gift-model";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { DEFAULT_GIFT_EMOJI, resolveGiftEmoji } from "@/lib/gift-emoji";
@@ -25,6 +26,7 @@ interface GiftFormData {
   nombre: string;
   emoji: string;
   especificaciones: string;
+  cantidad: string;
   categoriaId: string;
 }
 
@@ -32,6 +34,7 @@ const emptyForm: GiftFormData = {
   nombre: "",
   emoji: DEFAULT_GIFT_EMOJI,
   especificaciones: "",
+  cantidad: "1",
   categoriaId: "",
 };
 
@@ -137,6 +140,12 @@ export function AdminPanel() {
       return;
     }
 
+    const cantidad = parseInt(form.cantidad, 10);
+    if (!Number.isFinite(cantidad) || cantidad < 1) {
+      setFormError("La cantidad debe ser al menos 1");
+      return;
+    }
+
     setSaving(true);
     setFormError("");
 
@@ -144,6 +153,7 @@ export function AdminPanel() {
       nombre: form.nombre,
       emoji: form.emoji,
       especificaciones: form.especificaciones,
+      cantidad,
       categoriaId: form.categoriaId || null,
     };
 
@@ -181,6 +191,7 @@ export function AdminPanel() {
       nombre: gift.nombre,
       emoji: resolveGiftEmoji(gift),
       especificaciones: gift.especificaciones,
+      cantidad: String(gift.cantidad),
       categoriaId: gift.categoriaId ?? "",
     });
     setFormError("");
@@ -206,30 +217,28 @@ export function AdminPanel() {
   };
 
   const handleMarkReserved = async (gift: Gift) => {
-    if (!confirm("¿Marcar este regalo como reservado manualmente?")) return;
+    if (!confirm("¿Agregar una reserva manual (Admin) a este regalo?")) return;
 
     const res = await fetchJson<Gift>(
-      `/api/gifts/${encodeURIComponent(gift.id)}`,
+      `/api/gifts/${encodeURIComponent(gift.id)}/reserve`,
       {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          estado: "reservado",
-          reservadoPor: "Admin",
-        }),
+        body: JSON.stringify({ nombre: "Admin" }),
       },
     );
 
     if (res.ok) {
-      setGifts((prev) => prev.map((g) => (g.id === gift.id ? res.data : g)));
+      await fetchGifts();
     }
   };
 
   const handleClearReservation = async (gift: Gift) => {
-    const reservadoPor = gift.reservadoPor?.trim();
-    const message = reservadoPor
-      ? `¿Quitar la reserva de ${reservadoPor}? El regalo volverá a estar disponible para todos.`
-      : "¿Quitar la reserva de este regalo? Volverá a estar disponible para todos.";
+    const count = gift.reservas.length;
+    const message =
+      count === 1
+        ? `¿Quitar la reserva de ${gift.reservas[0].nombre}? El regalo volverá a estar disponible.`
+        : `¿Quitar las ${count} reservas de este regalo? Volverá a estar disponible para todos.`;
 
     if (!confirm(message)) return;
 
@@ -238,10 +247,7 @@ export function AdminPanel() {
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          estado: "disponible",
-          reservadoPor: null,
-        }),
+        body: JSON.stringify({ clearReservas: true }),
       },
     );
 
@@ -498,6 +504,28 @@ export function AdminPanel() {
               rows={2}
               className="w-full resize-none rounded-xl border border-beige-200 bg-white px-4 py-3 text-sm outline-none focus:border-sage-300"
             />
+            <div>
+              <label
+                htmlFor="gift-cantidad"
+                className="mb-1.5 block text-sm font-medium text-sage-800"
+              >
+                Cantidad de reservas
+              </label>
+              <input
+                id="gift-cantidad"
+                type="number"
+                min={1}
+                max={99}
+                value={form.cantidad}
+                onChange={(e) =>
+                  setForm({ ...form, cantidad: e.target.value })
+                }
+                className="w-full rounded-xl border border-beige-200 bg-white px-4 py-3 text-sm outline-none focus:border-sage-300"
+              />
+              <p className="mt-1 text-xs text-sage-600">
+                Cuántas personas pueden reservar este mismo regalo (ej. 3 platos).
+              </p>
+            </div>
             <select
               value={form.categoriaId}
               onChange={(e) =>
@@ -574,6 +602,11 @@ export function AdminPanel() {
                         {categoryMap.get(gift.categoriaId) ?? gift.categoriaId}
                       </p>
                     )}
+                    {gift.cantidad > 1 && (
+                      <p className="mt-1 text-xs text-sage-600">
+                        Cantidad: {gift.cantidad} reservas
+                      </p>
+                    )}
                     {gift.especificaciones && (
                       <p className="mt-1 text-sm text-gray-500">
                         {gift.especificaciones}
@@ -582,31 +615,42 @@ export function AdminPanel() {
                     <div className="mt-2">
                       <StatusBadge status={gift.estado} />
                     </div>
-                    {gift.estado === "reservado" && gift.reservadoPor && (
-                      <p className="mt-2 text-sm text-sage-700">
-                        Reservado por:{" "}
-                        <span className="font-medium">{gift.reservadoPor}</span>
-                      </p>
+                    {gift.reservas.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-sage-700">
+                          {gift.reservas.length}/{gift.cantidad} reservados
+                        </p>
+                        <ul className="mt-1 space-y-0.5">
+                          {gift.reservas.map((reserva, index) => (
+                            <li
+                              key={`${reserva.reservadoEn}-${index}`}
+                              className="text-sm text-sage-600"
+                            >
+                              · {reserva.nombre}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
-                    {gift.estado === "reservado" && (
+                    {gift.reservas.length > 0 && (
                       <button
                         type="button"
                         onClick={() => handleClearReservation(gift)}
                         className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sage-300 bg-sage-50 px-3 py-2 text-sm font-medium text-sage-800 hover:bg-sage-100"
                       >
                         <Undo2 className="h-4 w-4" />
-                        Quitar reserva
+                        Quitar reservas
                       </button>
                     )}
                   </div>
 
                   <div className="flex shrink-0 flex-col gap-1">
-                    {gift.estado === "disponible" && (
+                    {isGiftAvailable(gift) && (
                       <button
                         type="button"
                         onClick={() => handleMarkReserved(gift)}
                         className="rounded-lg p-2 text-sage-600 hover:bg-sage-50"
-                        title="Marcar como reservado"
+                        title="Agregar reserva manual"
                       >
                         <ToggleLeft className="h-5 w-5" />
                       </button>
