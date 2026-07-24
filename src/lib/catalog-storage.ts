@@ -76,7 +76,22 @@ export async function readManifestIds(): Promise<string[]> {
 
 export async function readCatalogRow(id: string): Promise<RawGiftRow | null> {
   await ensureCatalogMigrated();
-  return readJson<RawGiftRow>(giftCatalogPath(id));
+
+  const row = await readJson<RawGiftRow>(giftCatalogPath(id));
+  if (row) return row;
+
+  const legacy =
+    (await readJson<RawGiftRow[]>(LEGACY_CATALOG_PATH)) ??
+    (await readLocalSeedCatalog());
+  const fromLegacy = legacy?.find((gift) => gift.id === id);
+  if (!fromLegacy) return null;
+
+  const gift = normalizeGift(fromLegacy);
+  await writeJson(
+    giftCatalogPath(id),
+    giftForStorage({ ...gift, reservas: [], estado: "disponible" }),
+  );
+  return fromLegacy;
 }
 
 export async function writeCatalogGift(gift: Gift): Promise<void> {

@@ -9,6 +9,10 @@ export function giftReservationsPath(id: string): string {
   return `reservations/${id}.json`;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function normalizeReservations(raw: unknown): GiftReservation[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -34,6 +38,19 @@ function normalizeLegacyMap(raw: unknown): Record<string, GiftReservation[]> {
   return map;
 }
 
+async function readLegacyMap(): Promise<Record<string, GiftReservation[]>> {
+  const legacy = await readJson<unknown>(LEGACY_MAP_PATH);
+  return normalizeLegacyMap(legacy);
+}
+
+function parseReservationFile(
+  raw: { reservas?: GiftReservation[] } | GiftReservation[] | null,
+): GiftReservation[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return normalizeReservations(raw);
+  return normalizeReservations(raw.reservas);
+}
+
 export async function ensureReservationsMigrated(): Promise<void> {
   if (!migrationPromise) {
     migrationPromise = migrateLegacyReservationsIfNeeded();
@@ -45,8 +62,7 @@ async function migrateLegacyReservationsIfNeeded(): Promise<void> {
   const perGiftFiles = await listPathnames("reservations/");
   if (perGiftFiles.length > 0) return;
 
-  const legacy = await readJson<unknown>(LEGACY_MAP_PATH);
-  const map = normalizeLegacyMap(legacy);
+  const map = await readLegacyMap();
   if (Object.keys(map).length === 0) return;
 
   await Promise.all(
@@ -56,14 +72,39 @@ async function migrateLegacyReservationsIfNeeded(): Promise<void> {
   );
 }
 
-export async function readGiftReservations(id: string): Promise<GiftReservation[]> {
-  await ensureReservationsMigrated();
+async function readGiftReservationsFromFile(
+  id: string,
+): Promise<GiftReservation[] | null> {
   const raw = await readJson<{ reservas?: GiftReservation[] } | GiftReservation[]>(
     giftReservationsPath(id),
   );
-  if (!raw) return [];
-  if (Array.isArray(raw)) return normalizeReservations(raw);
-  return normalizeReservations(raw.reservas);
+  if (raw === null) return null;
+  return parseReservationFile(raw);
+}
+
+export async function readGiftReservations(id: string): Promise<GiftReservation[]> {
+  await ensureReservationsMigrated();
+
+  const fromFile = await readGiftReservationsFromFile(id);
+  if (fromFile !== null) return fromFile;
+
+  const legacy = await readLegacyMap();
+  return legacy[id] ?? [];
+}
+
+export async function readGiftReservationsWithRetry(
+  id: string,
+  expectedCount: number,
+  maxAttempts = 6,
+): Promise<GiftReservation[]> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const fromFile = await readGiftReservationsFromFile(id);
+    if (fromFile && fromFile.length >= expectedCount) return fromFile;
+    await sleep(120 * (attempt + 1));
+  }
+
+  const last = await readGiftReservationsFromFile(id);
+  return last ?? [];
 }
 
 export async function writeGiftReservations(

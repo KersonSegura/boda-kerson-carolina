@@ -18,8 +18,8 @@ import { isUsingBlobStorage } from "@/lib/json-storage";
 import {
   clearAllReservations,
   clearGiftReservations,
-  migrateEmbeddedReservations,
   readGiftReservations,
+  readGiftReservationsWithRetry,
   writeGiftReservations,
 } from "@/lib/reservations-store";
 
@@ -153,13 +153,13 @@ export async function reserveGift(
 
     await writeGiftReservations(id, updatedReservas);
 
-    const saved = await readGiftReservations(id);
-    const reservationSaved = saved.some(
-      (reserva) =>
-        reserva.nombre === trimmedName && reserva.reservadoEn === reservadoEn,
+    const saved = await readGiftReservationsWithRetry(
+      id,
+      updatedReservas.length,
     );
 
-    if (!reservationSaved) {
+    const savedCount = saved.length;
+    if (savedCount < updatedReservas.length) {
       return {
         error:
           "No se pudo confirmar la reserva en el servidor. Intenta de nuevo.",
