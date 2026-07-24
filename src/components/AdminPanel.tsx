@@ -17,9 +17,11 @@ import {
 import type { Category } from "@/types/category";
 import type { Gift } from "@/types/gift";
 import { fetchJson } from "@/lib/fetch-json";
+import { matchesGiftSearch } from "@/lib/gift-search";
 import { isGiftAvailable } from "@/lib/gift-model";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { GiftSearchBar } from "@/components/GiftSearchBar";
 import { DEFAULT_GIFT_EMOJI, resolveGiftEmoji } from "@/lib/gift-emoji";
 
 interface GiftFormData {
@@ -56,10 +58,16 @@ export function AdminPanel() {
   const [newCategory, setNewCategory] = useState("");
   const [categoryError, setCategoryError] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
+  const [giftSearch, setGiftSearch] = useState("");
 
   const categoryMap = useMemo(
     () => new Map(categories.map((c) => [c.id, c.nombre])),
     [categories],
+  );
+
+  const filteredGifts = useMemo(
+    () => gifts.filter((gift) => matchesGiftSearch(gift.nombre, giftSearch)),
+    [gifts, giftSearch],
   );
 
   const checkSession = useCallback(async () => {
@@ -570,6 +578,20 @@ export function AdminPanel() {
         <section className="space-y-3">
           <h2 className="font-serif text-lg text-sage-900">Regalos</h2>
 
+          <GiftSearchBar
+            id="admin-gift-search"
+            value={giftSearch}
+            onChange={setGiftSearch}
+            placeholder="Buscar regalo por nombre…"
+          />
+
+          {giftSearch.trim() && (
+            <p className="text-center text-sm text-sage-600">
+              {filteredGifts.length} resultado
+              {filteredGifts.length !== 1 ? "s" : ""}
+            </p>
+          )}
+
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -583,8 +605,12 @@ export function AdminPanel() {
             <p className="py-8 text-center text-sm text-gray-400">
               No hay regalos todavía.
             </p>
+          ) : filteredGifts.length === 0 ? (
+            <p className="py-8 text-center text-sm text-sage-600">
+              No hay regalos que coincidan con tu búsqueda.
+            </p>
           ) : (
-            gifts.map((gift) => (
+            filteredGifts.map((gift) => (
               <div
                 key={gift.id}
                 className="rounded-2xl border border-beige-200 bg-white p-4"

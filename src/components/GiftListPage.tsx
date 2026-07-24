@@ -6,9 +6,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category } from "@/types/category";
 import type { PublicGift } from "@/types/gift";
 import { fetchJson } from "@/lib/fetch-json";
+import { matchesGiftSearch } from "@/lib/gift-search";
 import { CategoryFilter } from "./CategoryFilter";
 import { ContactModal } from "./ContactModal";
 import { GiftCard } from "./GiftCard";
+import { GiftSearchBar } from "./GiftSearchBar";
 import { ReserveModal } from "./ReserveModal";
 import { SectionDivider } from "./SectionDivider";
 
@@ -24,6 +26,7 @@ export function GiftListPage({
   const [gifts, setGifts] = useState<PublicGift[]>(initialGifts);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedGift, setSelectedGift] = useState<PublicGift | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
 
@@ -47,9 +50,15 @@ export function GiftListPage({
   }, [fetchData]);
 
   const filteredGifts = useMemo(() => {
-    if (!selectedCategory) return gifts;
-    return gifts.filter((g) => g.categoriaId === selectedCategory);
-  }, [gifts, selectedCategory]);
+    return gifts.filter((gift) => {
+      const matchesCategory =
+        !selectedCategory || gift.categoriaId === selectedCategory;
+      const matchesSearch = matchesGiftSearch(gift.nombre, searchQuery);
+      return matchesCategory && matchesSearch;
+    });
+  }, [gifts, selectedCategory, searchQuery]);
+
+  const hasActiveFilters = Boolean(selectedCategory || searchQuery.trim());
 
   const handleSelectGift = (gift: PublicGift) => {
     if (gift.reservados < gift.cantidad) {
@@ -75,7 +84,7 @@ export function GiftListPage({
   };
 
   const availableCount = filteredGifts.filter(
-    (g) => g.estado === "disponible",
+    (g) => g.reservados < g.cantidad,
   ).length;
   const totalCount = filteredGifts.length;
 
@@ -179,6 +188,12 @@ export function GiftListPage({
           />
         </div>
 
+        <GiftSearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Buscar por nombre (ej. platos, ollas…)"
+        />
+
         <p className="mb-5 text-center text-base font-medium text-sage-700">
           {totalCount} regalo{totalCount !== 1 ? "s" : ""} — {availableCount}{" "}
           disponible{availableCount !== 1 ? "s" : ""}
@@ -188,7 +203,11 @@ export function GiftListPage({
           <p className="py-12 text-center text-base text-sage-600">
             {gifts.length === 0
               ? "Aún no hay regalos en la lista."
-              : "No hay regalos en esta categoría."}
+              : searchQuery.trim()
+                ? "No hay regalos que coincidan con tu búsqueda."
+                : hasActiveFilters
+                  ? "No hay regalos con estos filtros."
+                  : "No hay regalos en esta categoría."}
           </p>
         ) : (
           <div className="grid gap-4">
