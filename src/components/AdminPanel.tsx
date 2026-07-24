@@ -287,6 +287,25 @@ export function AdminPanel() {
     }
   };
 
+  const handleResetCatalog = async () => {
+    if (
+      !confirm(
+        "¿Reemplazar todos los regalos y categorías con la plantilla del sitio? Se perderán reservas y cambios actuales.",
+      )
+    ) {
+      return;
+    }
+
+    const res = await fetchJson<{ giftCount: number; categoryCount: number }>(
+      "/api/admin/reset-catalog",
+      { method: "POST" },
+    );
+
+    if (res.ok) {
+      await fetchAll();
+    }
+  };
+
   if (authenticated === null) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -429,6 +448,14 @@ export function AdminPanel() {
               ))}
             </ul>
           )}
+
+          <button
+            type="button"
+            onClick={handleResetCatalog}
+            className="mt-4 w-full rounded-xl border border-beige-300 bg-white py-2.5 text-sm font-medium text-sage-700 hover:bg-beige-100"
+          >
+            Restablecer catálogo desde plantilla
+          </button>
         </section>
 
         {/* Formulario regalo */}

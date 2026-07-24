@@ -1,50 +1,443 @@
 [
   {
     "id": "1",
-    "nombre": "Juego de platos",
-    "emoji": "🍽️",
-    "especificaciones": "Blanco, para 8 personas",
+    "nombre": "Vajilla completa",
+    "especificaciones": "",
     "estado": "disponible",
     "categoriaId": "cocina"
   },
   {
     "id": "2",
-    "nombre": "Juego de ollas",
-    "emoji": "🍳",
-    "especificaciones": "Acero inoxidable",
+    "nombre": "Platos llanos",
+    "especificaciones": "",
     "estado": "disponible",
     "categoriaId": "cocina"
   },
   {
     "id": "3",
-    "nombre": "Juego de copas",
-    "emoji": "🥂",
-    "especificaciones": "Cristal, set de 6",
+    "nombre": "Platos hondos",
+    "especificaciones": "",
     "estado": "disponible",
     "categoriaId": "cocina"
   },
   {
     "id": "4",
-    "nombre": "Batidora de mano",
-    "emoji": "🧁",
-    "especificaciones": "500W, color blanco",
+    "nombre": "Platos para postre",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "5",
+    "nombre": "Juego de cubiertos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "6",
+    "nombre": "Juego de vasos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "7",
+    "nombre": "Pirex",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "8",
+    "nombre": "Copas para vino",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "9",
+    "nombre": "Tazas para café",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "10",
+    "nombre": "Pichel",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "11",
+    "nombre": "Bandejas para servir",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "12",
+    "nombre": "Azucarera",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "13",
+    "nombre": "Mantequillera",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "14",
+    "nombre": "Frutero",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "15",
+    "nombre": "Juego de ollas",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "16",
+    "nombre": "Sartenes",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "17",
+    "nombre": "Olla de presión",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "18",
+    "nombre": "Moldes para repostería",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "19",
+    "nombre": "Juego de cuchillos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "20",
+    "nombre": "Afilador de cuchillos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "21",
+    "nombre": "Tablas para picar",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "22",
+    "nombre": "Rallador",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "23",
+    "nombre": "Coladores",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "24",
+    "nombre": "Exprimidor",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "25",
+    "nombre": "Batidor manual",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "26",
+    "nombre": "Pelador de verduras",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "27",
+    "nombre": "Tijeras de cocina",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "28",
+    "nombre": "Tabla para quesos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "29",
+    "nombre": "Báscula digital de cocina",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "cocina"
+  },
+  {
+    "id": "30",
+    "nombre": "Freidora de aire",
+    "especificaciones": "",
     "estado": "disponible",
     "categoriaId": "electrodomesticos"
   },
   {
-    "id": "5",
+    "id": "31",
+    "nombre": "Licuadora",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "32",
+    "nombre": "Batidora",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "33",
+    "nombre": "Cafetera eléctrica",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "34",
+    "nombre": "Olla arrocera",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "35",
+    "nombre": "Coffee maker",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "36",
+    "nombre": "Horno tostador",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "37",
+    "nombre": "Microondas",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "38",
+    "nombre": "Plancha de ropa",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "39",
+    "nombre": "Procesador de alimentos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "40",
+    "nombre": "Extractor de jugos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "41",
+    "nombre": "Sarten eléctrico",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "42",
+    "nombre": "Olla de cocción lenta",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "electrodomesticos"
+  },
+  {
+    "id": "43",
+    "nombre": "Recipientes herméticos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "44",
+    "nombre": "Organizadores para gavetas",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "45",
+    "nombre": "Especiero",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "46",
+    "nombre": "Tazas plásticas",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "47",
+    "nombre": "Porta utensilios",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "48",
+    "nombre": "Escurridor de platos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "49",
+    "nombre": "Dispensadores para jabón",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "50",
+    "nombre": "Cestas organizadoras",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "51",
+    "nombre": "Contenedores para arroz, azúcar y café",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "organizacion"
+  },
+  {
+    "id": "52",
     "nombre": "Juego de sábanas",
-    "emoji": "🛏️",
-    "especificaciones": "Algodón egipcio, tamaño queen",
+    "especificaciones": "",
     "estado": "disponible",
     "categoriaId": "hogar"
   },
   {
-    "id": "6",
-    "nombre": "Cafetera",
-    "emoji": "☕",
-    "especificaciones": "Espresso automática",
+    "id": "53",
+    "nombre": "Toallas de baño",
+    "especificaciones": "",
     "estado": "disponible",
-    "categoriaId": "electrodomesticos"
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "54",
+    "nombre": "Toallas de mano",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "55",
+    "nombre": "Alfombra para cocina",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "56",
+    "nombre": "Canasta de ropa",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "57",
+    "nombre": "Perchas",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "58",
+    "nombre": "Basurero baño",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "59",
+    "nombre": "Basurero habitación",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "60",
+    "nombre": "Basurero general",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "61",
+    "nombre": "Basurero de orgánicos",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "hogar"
+  },
+  {
+    "id": "62",
+    "nombre": "Termo",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "otros"
+  },
+  {
+    "id": "63",
+    "nombre": "Hielera",
+    "especificaciones": "",
+    "estado": "disponible",
+    "categoriaId": "otros"
   }
 ]

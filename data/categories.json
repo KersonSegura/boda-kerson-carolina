@@ -1,5 +1,7 @@
 [
   { "id": "cocina", "nombre": "Cocina" },
   { "id": "electrodomesticos", "nombre": "Electrodomésticos" },
-  { "id": "hogar", "nombre": "Hogar" }
+  { "id": "organizacion", "nombre": "Organización" },
+  { "id": "hogar", "nombre": "Hogar" },
+  { "id": "otros", "nombre": "Otros" }
 ]
