@@ -48,18 +48,22 @@ function migrateReservas(raw: RawGift): GiftReservation[] {
   return [];
 }
 
-/** Guarda solo campos actuales — evita campos legacy que duplican reservas al leer. */
-export function giftForStorage(gift: Gift): Gift {
-  const stored: Gift = {
+/** Catálogo en gifts.json — las reservas viven en reservations.json */
+export function giftForStorage(gift: Gift) {
+  const stored: {
+    id: string;
+    nombre: string;
+    emoji: string;
+    especificaciones: string;
+    cantidad: number;
+    categoriaId?: string;
+  } = {
     id: gift.id,
     nombre: gift.nombre,
     especificaciones: gift.especificaciones,
     cantidad: gift.cantidad,
-    reservas: gift.reservas,
-    estado: syncGiftEstado(gift),
+    emoji: normalizeGiftEmoji(gift.emoji ?? ""),
   };
-
-  stored.emoji = normalizeGiftEmoji(gift.emoji ?? "");
 
   if (gift.categoriaId) {
     stored.categoriaId = gift.categoriaId;

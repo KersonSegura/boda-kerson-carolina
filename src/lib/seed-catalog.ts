@@ -37,6 +37,7 @@ export async function applySeedCatalog(): Promise<{
   await Promise.all([
     writeJson("gifts.json", gifts.map(giftForStorage)),
     writeJson("categories.json", categories),
+    writeJson("reservations.json", {}),
     writeJson(VERSION_FILENAME, { version: seedVersion }),
   ]);
 

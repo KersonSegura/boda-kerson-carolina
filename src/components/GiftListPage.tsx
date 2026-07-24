@@ -34,6 +34,7 @@ export function GiftListPage({
   const [selectedGift, setSelectedGift] = useState<PublicGift | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
   const [reserveError, setReserveError] = useState("");
+  const [savingGiftIds, setSavingGiftIds] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     const cacheBust = Date.now();
@@ -59,6 +60,18 @@ export function GiftListPage({
     return () => window.removeEventListener("focus", onFocus);
   }, [fetchData]);
 
+  useEffect(() => {
+    if (savingGiftIds.size === 0) return;
+
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [savingGiftIds]);
+
   const filteredGifts = useMemo(() => {
     return gifts.filter((gift) => {
       const matchesCategory =
@@ -80,30 +93,39 @@ export function GiftListPage({
     setReserveError("");
 
     const snapshot = gifts;
+    setSavingGiftIds((prev) => new Set(prev).add(giftId));
     setGifts((prev) =>
       prev.map((gift) =>
         gift.id === giftId ? applyOptimisticReservation(gift) : gift,
       ),
     );
 
-    const result = await fetchJson<PublicGift>(
-      `/api/gifts/${encodeURIComponent(giftId)}/reserve`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre }),
-      },
-    );
+    try {
+      const result = await fetchJson<PublicGift>(
+        `/api/gifts/${encodeURIComponent(giftId)}/reserve`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nombre }),
+        },
+      );
 
-    if (!result.ok) {
-      setGifts(snapshot);
-      setReserveError(result.error);
-      throw new Error(result.error);
+      if (!result.ok) {
+        setGifts(snapshot);
+        setReserveError(result.error);
+        throw new Error(result.error);
+      }
+
+      setGifts((prev) =>
+        prev.map((gift) => (gift.id === giftId ? result.data : gift)),
+      );
+    } finally {
+      setSavingGiftIds((prev) => {
+        const next = new Set(prev);
+        next.delete(giftId);
+        return next;
+      });
     }
-
-    setGifts((prev) =>
-      prev.map((gift) => (gift.id === giftId ? result.data : gift)),
-    );
   };
 
   const availableCount = filteredGifts.filter(
@@ -251,6 +273,7 @@ export function GiftListPage({
               <GiftCard
                 key={gift.id}
                 gift={gift}
+                isSaving={savingGiftIds.has(gift.id)}
                 categoriaNombre={
                   gift.categoriaId
                     ? categoryMap.get(gift.categoriaId)

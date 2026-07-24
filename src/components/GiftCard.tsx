@@ -7,10 +7,16 @@ import { StatusBadge } from "./StatusBadge";
 interface GiftCardProps {
   gift: PublicGift;
   categoriaNombre?: string;
+  isSaving?: boolean;
   onSelect: (gift: PublicGift) => void;
 }
 
-export function GiftCard({ gift, categoriaNombre, onSelect }: GiftCardProps) {
+export function GiftCard({
+  gift,
+  categoriaNombre,
+  isSaving = false,
+  onSelect,
+}: GiftCardProps) {
   const emoji = gift.emoji?.trim() || DEFAULT_GIFT_EMOJI;
   const isAvailable = gift.reservados < gift.cantidad;
   const showReservationCount = gift.cantidad > 1;
@@ -19,9 +25,11 @@ export function GiftCard({ gift, categoriaNombre, onSelect }: GiftCardProps) {
     <button
       type="button"
       onClick={() => onSelect(gift)}
-      disabled={!isAvailable}
+      disabled={!isAvailable || isSaving}
       className={`w-full rounded-2xl border-2 bg-white p-5 text-left transition-all duration-200 sm:p-6 ${
-        isAvailable
+        isSaving
+          ? "cursor-wait border-amber-200 bg-amber-50/40"
+          : isAvailable
           ? "cursor-pointer border-beige-200 hover:border-sage-300 hover:shadow-md hover:shadow-sage-900/5 active:scale-[0.99]"
           : "cursor-default border-red-100 bg-red-50/30"
       }`}
@@ -61,7 +69,11 @@ export function GiftCard({ gift, categoriaNombre, onSelect }: GiftCardProps) {
           </div>
         </div>
 
-        {isAvailable ? (
+        {isSaving ? (
+          <p className="text-base font-semibold text-amber-800">
+            Guardando reserva… no cierres la página aún
+          </p>
+        ) : isAvailable ? (
           <p className="text-base font-semibold text-sage-700">
             Toca aquí para reservar →
             {showReservationCount && (

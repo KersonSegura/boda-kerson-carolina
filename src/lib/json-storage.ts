@@ -102,7 +102,9 @@ async function readBlobJsonViaPublicUrl<T>(filename: string): Promise<T | null> 
   const match = blobs.find((blob) => blob.pathname === filename);
   if (!match?.url) return null;
 
-  const response = await fetch(match.url, { cache: "no-store" });
+  const response = await fetch(`${match.url}?v=${Date.now()}`, {
+    cache: "no-store",
+  });
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new BlobReadError(
@@ -132,6 +134,14 @@ async function readBlobJson<T>(
     const text = await new Response(result.stream).text();
     return JSON.parse(text) as T;
   } catch (error) {
+    if (isForbiddenBlobError(error) && process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+      throw new BlobReadError(
+        `Lectura de Blob falló (${filename}): ${
+          error instanceof Error ? error.message : "403 Forbidden"
+        }`,
+      );
+    }
+
     if (isForbiddenBlobError(error)) {
       try {
         return await readBlobJsonViaPublicUrl<T>(filename);
@@ -173,7 +183,7 @@ async function writeBlobJson<T>(
   }
 
   try {
-    await put(filename, JSON.stringify(data, null, 2), {
+    await put(filename, JSON.stringify(data), {
       ...blobOptions,
       ...auth,
     });
