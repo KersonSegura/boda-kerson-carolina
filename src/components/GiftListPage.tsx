@@ -37,16 +37,6 @@ export function GiftListPage({
   const reservingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!selectedGift?.id) return;
-    const fresh = gifts.find((gift) => gift.id === selectedGift.id);
-    if (fresh) {
-      setSelectedGift(fresh);
-    } else {
-      setSelectedGift(null);
-    }
-  }, [gifts, selectedGift?.id]);
-
-  useEffect(() => {
     if (savingGiftIds.size === 0) return;
 
     const warn = (event: BeforeUnloadEvent) => {
@@ -164,13 +154,12 @@ export function GiftListPage({
       <header className="px-4 pt-8 text-center sm:px-6 sm:pt-12">
         <div className="relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-2xl">
           <Image
-            src="/hero2.png"
+            src="/hero.png"
             alt="Kerson y Carolina"
             fill
             className="object-cover object-top"
             priority
-            quality={100}
-            unoptimized
+            quality={85}
             sizes="(max-width: 640px) 100vw, 400px"
           />
         </div>

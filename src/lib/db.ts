@@ -111,6 +111,8 @@ async function initSchema(): Promise<void> {
     ON reservations(request_id)
     WHERE request_id IS NOT NULL
   `;
+
+  await sql`DELETE FROM gifts WHERE id IS NULL OR BTRIM(id) = ''`;
 }
 
 export { postgres };

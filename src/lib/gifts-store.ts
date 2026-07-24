@@ -1,7 +1,6 @@
 import type { CreateGiftInput, Gift, UpdateGiftInput } from "@/types/gift";
 import { shouldUsePostgres } from "@/lib/db";
 import {
-  pgCountGifts,
   pgCreateGift,
   pgDeleteGift,
   pgGetAllGifts,
@@ -24,22 +23,8 @@ type RawGiftRow = Parameters<
   typeof import("@/lib/gift-model").normalizeGift
 >[0];
 
-async function seedIfEmpty(): Promise<void> {
-  if (!shouldUsePostgres()) return;
-
-  const count = await pgCountGifts();
-  if (count > 0) return;
-
-  const { applySeedCatalog } = await import("@/lib/seed-catalog");
-  const seeded = await applySeedCatalog();
-  console.info(
-    `Catálogo vacío: se sembraron ${seeded.giftCount} regalos y ${seeded.categoryCount} categorías.`,
-  );
-}
-
 export async function getAllGifts(): Promise<Gift[]> {
   if (shouldUsePostgres()) {
-    await seedIfEmpty();
     return pgGetAllGifts();
   }
   return getAllGiftsLocal();

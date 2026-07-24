@@ -63,10 +63,8 @@ function mapGiftRow(row: Record<string, unknown>): GiftRow {
   };
 }
 
-function assembleGift(row: GiftRow, reservas: GiftReservation[]): Gift {
-  if (!row.id) {
-    throw new Error(`Regalo sin id en base de datos: ${row.nombre}`);
-  }
+function assembleGift(row: GiftRow, reservas: GiftReservation[]): Gift | null {
+  if (!row.id.trim()) return null;
 
   const gift = normalizeGift({
     id: row.id,
@@ -120,10 +118,11 @@ async function loadGiftFromDb(id: string): Promise<Gift | null> {
     ORDER BY reservado_en ASC
   `;
 
-  return assembleGift(
+  const gift = assembleGift(
     mapGiftRow(rows[0]),
     reservationRows.map(rowToReservation),
   );
+  return gift;
 }
 
 export async function pgGetAllGifts(): Promise<Gift[]> {
@@ -133,13 +132,20 @@ export async function pgGetAllGifts(): Promise<Gift[]> {
   const rows = (await sql`
     SELECT id, nombre, emoji, especificaciones, cantidad, categoria_id, sort_order
     FROM gifts
+    WHERE id IS NOT NULL AND BTRIM(id) <> ''
     ORDER BY sort_order ASC, id ASC
   `) as Record<string, unknown>[];
 
   const reservationsByGift = await readAllReservations();
-  return rows.map((row) =>
-    assembleGift(mapGiftRow(row), reservationsByGift.get(String(row.id)) ?? []),
-  );
+  return rows
+    .map((row) => {
+      const mapped = mapGiftRow(row);
+      return assembleGift(
+        mapped,
+        reservationsByGift.get(mapped.id) ?? [],
+      );
+    })
+    .filter((gift): gift is Gift => gift !== null);
 }
 
 export async function pgGetGiftById(id: string): Promise<Gift | undefined> {
