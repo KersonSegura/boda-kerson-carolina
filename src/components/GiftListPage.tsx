@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Category } from "@/types/category";
 import type { PublicGift } from "@/types/gift";
 import { fetchJson } from "@/lib/fetch-json";
@@ -35,6 +35,7 @@ export function GiftListPage({
   const [contactOpen, setContactOpen] = useState(false);
   const [reserveError, setReserveError] = useState("");
   const [savingGiftIds, setSavingGiftIds] = useState<Set<string>>(new Set());
+  const reservingRef = useRef<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     const cacheBust = Date.now();
@@ -84,12 +85,23 @@ export function GiftListPage({
   const hasActiveFilters = Boolean(selectedCategory || searchQuery.trim());
 
   const handleSelectGift = (gift: PublicGift) => {
-    if (gift.reservados < gift.cantidad) {
+    if (
+      gift.reservados < gift.cantidad &&
+      !savingGiftIds.has(gift.id) &&
+      !reservingRef.current.has(gift.id)
+    ) {
       setSelectedGift(gift);
     }
   };
 
-  const handleReserve = async (giftId: string, nombre: string) => {
+  const handleReserve = async (
+    giftId: string,
+    nombre: string,
+    requestId: string,
+  ) => {
+    if (reservingRef.current.has(giftId)) return;
+
+    reservingRef.current.add(giftId);
     setReserveError("");
 
     const snapshot = gifts;
@@ -106,7 +118,7 @@ export function GiftListPage({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nombre }),
+          body: JSON.stringify({ nombre, requestId }),
         },
       );
 
@@ -120,6 +132,7 @@ export function GiftListPage({
         prev.map((gift) => (gift.id === giftId ? result.data : gift)),
       );
     } finally {
+      reservingRef.current.delete(giftId);
       setSavingGiftIds((prev) => {
         const next = new Set(prev);
         next.delete(giftId);

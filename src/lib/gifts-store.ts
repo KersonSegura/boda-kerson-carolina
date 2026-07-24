@@ -152,42 +152,85 @@ export async function deleteGift(id: string): Promise<boolean> {
   return true;
 }
 
+const MAX_RESERVE_ATTEMPTS = 5;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function reserveGift(
   id: string,
   nombre: string,
+  requestId?: string,
 ): Promise<{ gift: Gift } | { error: string }> {
   const trimmedName = nombre.trim();
   if (!trimmedName) return { error: "El nombre es requerido" };
 
   try {
-    const row = await readCatalogRow(id);
-    if (!row) return { error: "Regalo no encontrado" };
-
-    const giftMeta = normalizeGift(row);
-    const current = await readGiftReservations(id);
-
-    if (!isGiftAvailable({ cantidad: giftMeta.cantidad, reservas: current })) {
-      return { error: "Este regalo ya no tiene cupos disponibles" };
-    }
-
     const reservadoEn = new Date().toISOString();
-    const updatedReservas: GiftReservation[] = [
-      ...current,
-      { nombre: trimmedName, reservadoEn },
-    ];
-
-    await writeGiftReservations(id, updatedReservas);
-
-    const gift: Gift = {
-      ...giftMeta,
-      reservas: updatedReservas,
-      estado: syncGiftEstado({
-        cantidad: giftMeta.cantidad,
-        reservas: updatedReservas,
-      }),
+    const newReservation: GiftReservation = {
+      nombre: trimmedName,
+      reservadoEn,
+      ...(requestId && { requestId }),
     };
 
-    return { gift };
+    for (let attempt = 0; attempt < MAX_RESERVE_ATTEMPTS; attempt++) {
+      const row = await readCatalogRow(id);
+      if (!row) return { error: "Regalo no encontrado" };
+
+      const giftMeta = normalizeGift(row);
+      const current = await readGiftReservations(id);
+
+      if (requestId) {
+        const duplicate = current.find(
+          (reserva) => reserva.requestId === requestId,
+        );
+        if (duplicate) {
+          return {
+            gift: {
+              ...giftMeta,
+              reservas: current,
+              estado: syncGiftEstado({
+                cantidad: giftMeta.cantidad,
+                reservas: current,
+              }),
+            },
+          };
+        }
+      }
+
+      if (!isGiftAvailable({ cantidad: giftMeta.cantidad, reservas: current })) {
+        return { error: "Este regalo ya no tiene cupos disponibles" };
+      }
+
+      const updatedReservas: GiftReservation[] = [...current, newReservation];
+      await writeGiftReservations(id, updatedReservas);
+
+      const saved = await readGiftReservations(id);
+      const reservationSaved = requestId
+        ? saved.some((reserva) => reserva.requestId === requestId)
+        : saved.length >= updatedReservas.length;
+
+      if (reservationSaved) {
+        return {
+          gift: {
+            ...giftMeta,
+            reservas: saved,
+            estado: syncGiftEstado({
+              cantidad: giftMeta.cantidad,
+              reservas: saved,
+            }),
+          },
+        };
+      }
+
+      await sleep(100 * (attempt + 1));
+    }
+
+    return {
+      error:
+        "No se pudo confirmar la reserva por concurrencia. Recarga e intenta de nuevo.",
+    };
   } catch (error) {
     const detail =
       error instanceof Error ? error.message : "Error desconocido";

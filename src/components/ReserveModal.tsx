@@ -8,7 +8,7 @@ import { Modal } from "./Modal";
 interface ReserveModalProps {
   gift: PublicGift | null;
   onClose: () => void;
-  onReserve: (giftId: string, nombre: string) => Promise<void>;
+  onReserve: (giftId: string, nombre: string, requestId: string) => Promise<void>;
 }
 
 export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
@@ -16,31 +16,38 @@ export function ReserveModal({ gift, onClose, onReserve }: ReserveModalProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const submitLockRef = useRef(false);
 
   useEffect(() => {
     if (gift) {
       setNombre("");
       setError("");
       setLoading(false);
+      submitLockRef.current = false;
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [gift]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitLockRef.current || loading) return;
+
     if (!nombre.trim()) {
       setError("Por favor escribe tu nombre");
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
     setError("");
 
     try {
-      await onReserve(gift!.id, nombre.trim());
+      const requestId = crypto.randomUUID();
+      await onReserve(gift!.id, nombre.trim(), requestId);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al reservar");
+      submitLockRef.current = false;
     } finally {
       setLoading(false);
     }

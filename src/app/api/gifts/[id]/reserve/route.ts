@@ -11,14 +11,18 @@ interface RouteContext {
 export async function POST(request: Request, { params }: RouteContext) {
   const { id } = await params;
 
-  let body: { nombre?: string };
+  let body: { nombre?: string; requestId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   }
 
-  const result = await reserveGift(id, body.nombre ?? "");
+  const result = await reserveGift(
+    id,
+    body.nombre ?? "",
+    body.requestId?.trim() || undefined,
+  );
 
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 400 });

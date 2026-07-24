@@ -18,6 +18,7 @@ function normalizeReservations(raw: unknown): GiftReservation[] {
       return {
         nombre: String(entry.nombre ?? "").trim(),
         reservadoEn: entry.reservadoEn ?? new Date().toISOString(),
+        ...(entry.requestId && { requestId: String(entry.requestId) }),
       };
     })
     .filter((row) => row.nombre);

@@ -3,6 +3,7 @@ export type GiftStatus = "disponible" | "reservado";
 export interface GiftReservation {
   nombre: string;
   reservadoEn: string;
+  requestId?: string;
 }
 
 export interface Gift {
