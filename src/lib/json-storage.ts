@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { get, list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 
 function isVercel(): boolean {
   return process.env.VERCEL === "1";
@@ -238,6 +238,45 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
     return;
   }
   await writeLocalJson(filename, data);
+}
+
+export async function deleteJson(filename: string): Promise<void> {
+  if (useBlobStorage()) {
+    try {
+      await del(filename, blobAuthOptions());
+    } catch {
+      // Ignorar si el archivo ya no existe.
+    }
+    return;
+  }
+
+  try {
+    await fs.unlink(localFilePath(filename));
+  } catch {
+    // Ignorar si el archivo ya no existe.
+  }
+}
+
+export async function listPathnames(prefix: string): Promise<string[]> {
+  if (useBlobStorage()) {
+    const { blobs } = await list({
+      prefix,
+      limit: 1000,
+      ...blobAuthOptions(),
+    });
+    return blobs.map((blob) => blob.pathname);
+  }
+
+  const dir = localFilePath(prefix);
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const normalizedPrefix = prefix.endsWith("/") ? prefix : `${prefix}/`;
+    return entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => `${normalizedPrefix}${entry.name}`);
+  } catch {
+    return [];
+  }
 }
 
 export function isUsingBlobStorage(): boolean {

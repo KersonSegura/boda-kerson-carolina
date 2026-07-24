@@ -1,65 +1,105 @@
 import type { GiftReservation } from "@/types/gift";
-import { readJson, readJsonWithSeed, writeJson } from "@/lib/json-storage";
+import { deleteJson, listPathnames, readJson, writeJson } from "@/lib/json-storage";
 
-const FILENAME = "reservations.json";
+const LEGACY_MAP_PATH = "reservations.json";
 
-export type ReservationsMap = Record<string, GiftReservation[]>;
+let migrationPromise: Promise<void> | null = null;
 
-function normalizeReservationsMap(raw: unknown): ReservationsMap {
+export function giftReservationsPath(id: string): string {
+  return `reservations/${id}.json`;
+}
+
+function normalizeReservations(raw: unknown): GiftReservation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row) => row && typeof row === "object" && "nombre" in row)
+    .map((row) => {
+      const entry = row as GiftReservation;
+      return {
+        nombre: String(entry.nombre ?? "").trim(),
+        reservadoEn: entry.reservadoEn ?? new Date().toISOString(),
+      };
+    })
+    .filter((row) => row.nombre);
+}
+
+function normalizeLegacyMap(raw: unknown): Record<string, GiftReservation[]> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
 
-  const map: ReservationsMap = {};
+  const map: Record<string, GiftReservation[]> = {};
   for (const [giftId, entry] of Object.entries(raw as Record<string, unknown>)) {
-    if (!Array.isArray(entry)) continue;
-    const reservas = entry
-      .filter((r) => r && typeof r === "object" && "nombre" in r)
-      .map((r) => {
-        const row = r as GiftReservation;
-        return {
-          nombre: String(row.nombre ?? "").trim(),
-          reservadoEn: row.reservadoEn ?? new Date().toISOString(),
-        };
-      })
-      .filter((r) => r.nombre);
+    const reservas = normalizeReservations(entry);
     if (reservas.length > 0) map[giftId] = reservas;
   }
   return map;
 }
 
-export async function readReservationsMap(): Promise<ReservationsMap> {
-  const raw = await readJsonWithSeed<unknown>(FILENAME);
-  return normalizeReservationsMap(raw);
+export async function ensureReservationsMigrated(): Promise<void> {
+  if (!migrationPromise) {
+    migrationPromise = migrateLegacyReservationsIfNeeded();
+  }
+  await migrationPromise;
 }
 
-export async function writeReservationsMap(map: ReservationsMap): Promise<void> {
-  await writeJson(FILENAME, map);
+async function migrateLegacyReservationsIfNeeded(): Promise<void> {
+  const perGiftFiles = await listPathnames("reservations/");
+  if (perGiftFiles.length > 0) return;
+
+  const legacy = await readJson<unknown>(LEGACY_MAP_PATH);
+  const map = normalizeLegacyMap(legacy);
+  if (Object.keys(map).length === 0) return;
+
+  await Promise.all(
+    Object.entries(map).map(([giftId, reservas]) =>
+      writeGiftReservations(giftId, reservas),
+    ),
+  );
+}
+
+export async function readGiftReservations(id: string): Promise<GiftReservation[]> {
+  await ensureReservationsMigrated();
+  const raw = await readJson<{ reservas?: GiftReservation[] } | GiftReservation[]>(
+    giftReservationsPath(id),
+  );
+  if (!raw) return [];
+  if (Array.isArray(raw)) return normalizeReservations(raw);
+  return normalizeReservations(raw.reservas);
+}
+
+export async function writeGiftReservations(
+  id: string,
+  reservas: GiftReservation[],
+): Promise<void> {
+  if (reservas.length === 0) {
+    await deleteJson(giftReservationsPath(id));
+    return;
+  }
+  await writeJson(giftReservationsPath(id), { reservas });
 }
 
 export async function clearGiftReservations(giftId: string): Promise<void> {
-  const map = await readReservationsMap();
-  delete map[giftId];
-  await writeReservationsMap(map);
+  await deleteJson(giftReservationsPath(giftId));
 }
 
-/** Migra reservas embebidas en gifts.json al archivo dedicado (una sola vez). */
+/** Migra reservas embebidas en filas del catálogo legacy. */
 export async function migrateEmbeddedReservations(
-  embedded: ReservationsMap,
-): Promise<ReservationsMap> {
-  const existing = await readJson<unknown>(FILENAME);
-  const map = normalizeReservationsMap(existing);
+  embedded: Record<string, GiftReservation[]>,
+): Promise<void> {
+  await ensureReservationsMigrated();
 
-  let changed = false;
-  for (const [giftId, reservas] of Object.entries(embedded)) {
-    if (reservas.length === 0) continue;
-    if (!map[giftId]?.length) {
-      map[giftId] = reservas;
-      changed = true;
-    }
-  }
+  await Promise.all(
+    Object.entries(embedded).map(async ([giftId, reservas]) => {
+      if (reservas.length === 0) return;
+      const existing = await readGiftReservations(giftId);
+      if (existing.length === 0) {
+        await writeGiftReservations(giftId, reservas);
+      }
+    }),
+  );
+}
 
-  if (changed) {
-    await writeReservationsMap(map);
-  }
-
-  return map;
+export async function clearAllReservations(): Promise<void> {
+  const files = await listPathnames("reservations/");
+  await Promise.all(files.map((pathname) => deleteJson(pathname)));
+  migrationPromise = null;
 }

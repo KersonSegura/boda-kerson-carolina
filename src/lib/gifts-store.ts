@@ -1,77 +1,61 @@
 import type { CreateGiftInput, Gift, GiftReservation, UpdateGiftInput } from "@/types/gift";
 import { normalizeGiftEmoji } from "@/lib/gift-emoji";
 import {
-  giftForStorage,
+  appendCatalogGift,
+  ensureCatalogMigrated,
+  readCatalogRow,
+  readManifestIds,
+  removeCatalogGift,
+  writeCatalogGift,
+} from "@/lib/catalog-storage";
+import {
   isGiftAvailable,
   normalizeCantidad,
   normalizeGift,
-  normalizeGifts,
   syncGiftEstado,
 } from "@/lib/gift-model";
-import { readJsonWithSeed, writeJson, isUsingBlobStorage } from "@/lib/json-storage";
+import { isUsingBlobStorage } from "@/lib/json-storage";
 import {
+  clearAllReservations,
   clearGiftReservations,
   migrateEmbeddedReservations,
-  readReservationsMap,
-  writeReservationsMap,
+  readGiftReservations,
+  writeGiftReservations,
 } from "@/lib/reservations-store";
-
-const FILENAME = "gifts.json";
 
 type RawGiftRow = Parameters<typeof normalizeGift>[0];
 
-async function readCatalogFile(): Promise<RawGiftRow[]> {
-  const raw = await readJsonWithSeed<RawGiftRow[]>(FILENAME);
-  return raw as RawGiftRow[];
+async function loadGift(id: string): Promise<Gift | null> {
+  const row = await readCatalogRow(id);
+  if (!row) return null;
+
+  const gift = normalizeGift(row);
+  const reservas = await readGiftReservations(id);
+  return {
+    ...gift,
+    reservas,
+    estado: syncGiftEstado({ cantidad: gift.cantidad, reservas }),
+  };
 }
 
-async function writeCatalogFile(gifts: Gift[]): Promise<void> {
-  await writeJson(FILENAME, gifts.map(giftForStorage));
-}
+async function loadAllGifts(): Promise<Gift[]> {
+  await ensureCatalogMigrated();
 
-function attachReservations(
-  catalog: RawGiftRow[],
-  reservations: Record<string, GiftReservation[]>,
-): Gift[] {
-  return catalog.map((row) => {
-    const gift = normalizeGift(row);
-    const fromStore = reservations[gift.id];
-    const reservas =
-      fromStore && fromStore.length > 0 ? fromStore : gift.reservas;
-    return {
-      ...gift,
-      reservas,
-      estado: syncGiftEstado({ cantidad: gift.cantidad, reservas }),
-    };
-  });
-}
-
-async function readGiftsFile(): Promise<Gift[]> {
-  const catalog = await readCatalogFile();
-  const normalized = normalizeGifts(catalog);
-
-  const embedded: Record<string, GiftReservation[]> = {};
-  for (const gift of normalized) {
-    if (gift.reservas.length > 0) {
-      embedded[gift.id] = gift.reservas;
-    }
-  }
-
-  const reservations = await migrateEmbeddedReservations(embedded);
-  return attachReservations(catalog, reservations);
+  const ids = await readManifestIds();
+  const gifts = await Promise.all(ids.map((id) => loadGift(id)));
+  return gifts.filter((gift): gift is Gift => gift !== null);
 }
 
 export async function getAllGifts(): Promise<Gift[]> {
-  return readGiftsFile();
+  return loadAllGifts();
 }
 
 export async function getGiftById(id: string): Promise<Gift | undefined> {
-  const gifts = await readGiftsFile();
-  return gifts.find((gift) => gift.id === id);
+  const gift = await loadGift(id);
+  return gift ?? undefined;
 }
 
 export async function createGift(input: CreateGiftInput): Promise<Gift> {
-  const gifts = await readGiftsFile();
   const gift: Gift = {
     id: crypto.randomUUID(),
     nombre: input.nombre.trim(),
@@ -82,8 +66,8 @@ export async function createGift(input: CreateGiftInput): Promise<Gift> {
     estado: "disponible",
     ...(input.categoriaId && { categoriaId: input.categoriaId }),
   };
-  gifts.push(gift);
-  await writeCatalogFile(gifts);
+
+  await appendCatalogGift(gift);
   return gift;
 }
 
@@ -91,11 +75,8 @@ export async function updateGift(
   id: string,
   input: UpdateGiftInput,
 ): Promise<Gift | null> {
-  const gifts = await readGiftsFile();
-  const index = gifts.findIndex((gift) => gift.id === id);
-  if (index === -1) return null;
-
-  const current = gifts[index];
+  const current = await loadGift(id);
+  if (!current) return null;
 
   if (input.cantidad !== undefined) {
     const cantidad = normalizeCantidad(input.cantidad);
@@ -134,16 +115,15 @@ export async function updateGift(
     updated.estado = syncGiftEstado(updated);
   }
 
-  gifts[index] = updated;
-  await writeCatalogFile(gifts);
+  await writeCatalogGift(updated);
   return updated;
 }
 
 export async function deleteGift(id: string): Promise<boolean> {
-  const gifts = await readGiftsFile();
-  const filtered = gifts.filter((gift) => gift.id !== id);
-  if (filtered.length === gifts.length) return false;
-  await Promise.all([writeCatalogFile(filtered), clearGiftReservations(id)]);
+  const current = await loadGift(id);
+  if (!current) return false;
+
+  await Promise.all([removeCatalogGift(id), clearGiftReservations(id)]);
   return true;
 }
 
@@ -155,13 +135,11 @@ export async function reserveGift(
   if (!trimmedName) return { error: "El nombre es requerido" };
 
   try {
-    const catalog = await readCatalogFile();
-    const row = catalog.find((gift) => gift.id === id);
+    const row = await readCatalogRow(id);
     if (!row) return { error: "Regalo no encontrado" };
 
     const giftMeta = normalizeGift(row);
-    const reservations = await readReservationsMap();
-    const current = reservations[id] ?? [];
+    const current = await readGiftReservations(id);
 
     if (!isGiftAvailable({ cantidad: giftMeta.cantidad, reservas: current })) {
       return { error: "Este regalo ya no tiene cupos disponibles" };
@@ -173,11 +151,9 @@ export async function reserveGift(
       { nombre: trimmedName, reservadoEn },
     ];
 
-    reservations[id] = updatedReservas;
-    await writeReservationsMap(reservations);
+    await writeGiftReservations(id, updatedReservas);
 
-    const verified = await readReservationsMap();
-    const saved = verified[id] ?? [];
+    const saved = await readGiftReservations(id);
     const reservationSaved = saved.some(
       (reserva) =>
         reserva.nombre === trimmedName && reserva.reservadoEn === reservadoEn,
@@ -209,4 +185,10 @@ export async function reserveGift(
         : "No se pudo guardar la reserva en el servidor.",
     };
   }
+}
+
+export async function resetCatalogFromSeed(rows: RawGiftRow[]): Promise<number> {
+  const { writeSeedCatalog } = await import("@/lib/catalog-storage");
+  await clearAllReservations();
+  return writeSeedCatalog(rows);
 }

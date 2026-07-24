@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import type { Category } from "@/types/category";
 import type { Gift } from "@/types/gift";
-import { giftForStorage } from "@/lib/gift-model";
+import { resetCatalogFromSeed } from "@/lib/gifts-store";
 import { writeJson } from "@/lib/json-storage";
 
 const VERSION_FILENAME = "catalog-version.json";
@@ -34,15 +34,15 @@ export async function applySeedCatalog(): Promise<{
     readSeedVersion(),
   ]);
 
+  const giftCount = await resetCatalogFromSeed(gifts);
+
   await Promise.all([
-    writeJson("gifts.json", gifts.map(giftForStorage)),
     writeJson("categories.json", categories),
-    writeJson("reservations.json", {}),
     writeJson(VERSION_FILENAME, { version: seedVersion }),
   ]);
 
   return {
-    giftCount: gifts.length,
+    giftCount,
     categoryCount: categories.length,
     version: seedVersion,
   };
