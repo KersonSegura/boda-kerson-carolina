@@ -102,7 +102,7 @@ export function GiftListPage({
       <header className="px-4 pt-8 text-center sm:px-6 sm:pt-12">
         <div className="relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-2xl">
           <Image
-            src="/hero.png"
+            src="/hero2.png"
             alt="Kerson y Carolina"
             fill
             className="object-cover object-top"
